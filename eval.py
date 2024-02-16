@@ -7,6 +7,7 @@ import sys
 import time
 import torch
 import torchvision
+import click
 
 from flas import (
     generate_random_colors,
@@ -390,7 +391,9 @@ def blocky_vad(params):
     sys.exit(0)
 
 
-def pssm():
+@click.command()
+@click.option("--size", default=256, help="Size of the image")
+def pssm(size):
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
@@ -402,16 +405,7 @@ def pssm():
     else:
         device = "cpu"
 
-    # device = "cpu"
-
     print(f"Using {device=}")
-
-    # blocky_perf(device)
-
-    if len(sys.argv) < 2:
-        size = 256
-    else:
-        size = int(sys.argv[1])
 
     print(f"Size: {size} x {size}")
 
@@ -420,8 +414,6 @@ def pssm():
     # (channels, height, width)
     params = torch.from_numpy(params_np).permute(2, 0, 1).float().to(device)
     assert params.shape[1] == params.shape[2]
-
-    # blocky_vad(params)
 
     org_params = params.clone()
 

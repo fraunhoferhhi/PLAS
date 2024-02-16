@@ -10,7 +10,9 @@
             "request": "launch",
             "program": "eval.py",
             "console": "integratedTerminal",
-            "args": "${command:pickArgs}"
+            "args": [
+                "--size=64"
+            ],
         },
         {
             "name": "Run FLAS 64x64 RGB",

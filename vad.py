@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def compute_vad(image):
     """
     Calculate the variance of absolute differences for a 2D image.
