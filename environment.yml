@@ -1,0 +1,54 @@
+name: plas
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  # - cudatoolkit=11.8
+  - plyfile
+  # open3d not supported in 3.11
+  # using 3.8 features
+  - python=3.10
+  - pip
+  - pytorch
+  # - pytorch-cuda=11.8
+  # - torchaudio
+  - torchvision
+  - tqdm
+  # - screeninfo
+  - kornia
+
+  # flas dep
+  # - opencv
+  - scipy
+  - matplotlib
+  # - pandas
+  # - trimesh
+  # - tensorboard
+  # nnc deps
+  # - pybind11
+  # - h5py
+  # - scikit-learn
+  - click
+  # - hydra-core
+  # - optuna
+  # - pytorch-lightning
+  # ---
+
+  - pip:
+      # - submodules/diff-gaussian-rasterization
+      # - submodules/simple-knn
+      # - torchgeometry
+      # - imagecodecs[all]
+      # - open3d
+      # nnc dep
+      # - tensorflow
+      # ---
+      # - submodules/nnc
+      # - pillow-heif
+      # - pyheif
+      # - wandb
+
+      # flas dep
+      - lap
