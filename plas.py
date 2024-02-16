@@ -46,7 +46,7 @@ def imshow_torch(name, img):
 def imshow_cv2(name, img):
     if not SHOW_VIS:
         return
-    
+
     imsize = img.shape[0]
 
     if img.shape[0] < 1024:
@@ -65,7 +65,6 @@ def imshow_cv2(name, img):
         if write_idx % 10 == 0:
             cv2.imwrite(os.path.join(folder, f"{name}-{write_idx:04d}.png"), img)
         WRITE_IDX[name] += 1
-
 
 
 def distance_with_batch_dim(a, b):
@@ -164,7 +163,9 @@ def params_to_blocky(
     # params: (c, h, w)
     params_rolled = torch.roll(params, (shift_y, shift_x), dims=(1, 2))
 
-    params_truncated = params_rolled[:, : num_pixel_blocks * block_size, : num_pixel_blocks * block_size]
+    params_truncated = params_rolled[
+        :, : num_pixel_blocks * block_size, : num_pixel_blocks * block_size
+    ]
 
     # get the channel out of the way temporarily
     # (c, _, h, w)
@@ -209,7 +210,13 @@ def params_to_blocky(
 
 # @torch.compile(fullgraph=True)
 def blocky_to_params(
-    params_rolled, params_blocky_flat, block_size, block_divisor, num_pixel_blocks, shift_y, shift_x
+    params_rolled,
+    params_blocky_flat,
+    block_size,
+    block_divisor,
+    num_pixel_blocks,
+    shift_y,
+    shift_x,
 ):
     # unflatten the block dimensions
     # (r^2, pb, pb, c, h/r/pb, w/r/pb)
@@ -244,7 +251,9 @@ def blocky_to_params(
 
     params_unshuffled = params_shuffled.squeeze(1)
 
-    params_rolled[:, : num_pixel_blocks * block_size, : num_pixel_blocks * block_size] = params_unshuffled
+    params_rolled[
+        :, : num_pixel_blocks * block_size, : num_pixel_blocks * block_size
+    ] = params_unshuffled
 
     params = torch.roll(params_rolled, (-shift_y, -shift_x), dims=(1, 2))
 
@@ -269,7 +278,6 @@ def reorder_blocky_shuffled(
     # retrieve params
     blockwise_shuffled_params = params_blocky_flat[:, :, shuffled_block_indices_cand]
     blockwise_shuffled_target = target_blocky_flat[:, :, shuffled_block_indices_cand]
-
 
     C = squared_l2_distance_with_batch_dim(
         blockwise_shuffled_params, blockwise_shuffled_target
@@ -325,7 +333,6 @@ def reorder_blocky(
     # imshow_torch("target-init", target)
     # import sys
     # sys.exit(0)
-
 
     # choice A)
     # for blocksize = img / 2, 4, 8, 16.. until min blocksize, e.g. 16x16?
@@ -384,9 +391,7 @@ def reorder_blocky(
     num_pixel_blocks = sidelen // block_size
 
     if pbar:
-        pbar.set_description(
-            f"filter_size={filter_size_x} - {block_size=}"
-        )
+        pbar.set_description(f"filter_size={filter_size_x} - {block_size=}")
 
     num_reorders = 0
 
@@ -417,7 +422,6 @@ def reorder_blocky(
         # params_blocky_flat = debug_show_blocks(params_blocky_flat)
 
         prev_dist = l2_dist(params_blocky_flat, target_blocky_flat)
-
 
         # for i in range(n_block_reorders):
         i = 0
@@ -504,7 +508,7 @@ def radius_seq(max_radius, radius_update):
             break
 
 
-def sort_with_blocky(params, min_block_size=16, improvement_break=1e-5, verbose=False):
+def sort_with_plas(params, min_block_size=16, improvement_break=1e-5, verbose=False):
     torch.manual_seed(42)
     np.random.seed(7)
 
@@ -521,7 +525,7 @@ def sort_with_blocky(params, min_block_size=16, improvement_break=1e-5, verbose=
     # iters = int(np.sqrt(H) * 50)
 
     radii = list(radius_seq(radius_f, 0.95))
-    
+
     if verbose:
         pbar = tqdm(radii)
     else:
@@ -559,6 +563,8 @@ def sort_with_blocky(params, min_block_size=16, improvement_break=1e-5, verbose=
     duration = time.time() - start_time
 
     if verbose:
-        print(f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with BLOCKY-SSM in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second")
+        print(
+            f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with BLOCKY-SSM in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
+        )
 
-    return params, grid_indices # , duration
+    return params, grid_indices  # , duration

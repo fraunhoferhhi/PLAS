@@ -12,18 +12,26 @@
             "console": "integratedTerminal",
             "args": "${command:pickArgs}"
         },
-
-
         {
             "name": "Run FLAS 64x64 RGB",
             "type": "debugpy",
             "request": "launch",
             "program": "flas.py",
             "console": "integratedTerminal",
-            "args": ["--width", "64",
-                     "--height", "64"],
+            "args": [
+                "--width",
+                "64",
+                "--height",
+                "64"
+            ],
         },
-
-
+        {
+            "name": "Runtime over size",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "eval_plas_runtime_over_size.py",
+            "console": "integratedTerminal",
+            "args": [],
+        },
     ]
 }

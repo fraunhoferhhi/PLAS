@@ -14,7 +14,7 @@ from flas import (
     distance_preservation_quality,
 )
 
-from plas import sort_with_blocky
+from plas import sort_with_plas
 
 from vad import compute_vad
 
@@ -45,7 +45,6 @@ COMPUTE_PSSM = False
 COMPUTE_PFLAS = False
 COMPUTE_BLOCKY = True
 COMPUTE_FLAS = True
-
 
 
 def imshow_torch(name, img):
@@ -310,6 +309,7 @@ def sort_with_pssm(params, som_target=None, device="cpu"):
 def blocky_perf(device):
 
     import pandas as pd
+
     df = pd.DataFrame(columns=["i", "size", "duration", "blocky_var"])
 
     for i in [4, 4, 4]:
@@ -318,7 +318,7 @@ def blocky_perf(device):
         np.random.seed(42)
         random.seed(42)
 
-        size = 2 ** i
+        size = 2**i
 
         params_np = generate_random_colors(size, size)
 
@@ -326,7 +326,9 @@ def blocky_perf(device):
         params = torch.from_numpy(params_np).permute(2, 0, 1).float().to(device)
         assert params.shape[1] == params.shape[2]
 
-        blocky_params, blocky_indices, duration = sort_with_blocky(params.clone(), improvement_break=1e-4, verbose=False)
+        blocky_params, blocky_indices, duration = sort_with_plas(
+            params.clone(), improvement_break=1e-4, verbose=False
+        )
 
         assert (
             params.to(torch.int64).sum().item()
@@ -345,27 +347,29 @@ def blocky_perf(device):
     sys.exit(0)
 
 
-
-
-
 def blocky_vad(params):
 
     steps = 24
 
     import pandas as pd
+
     df = pd.DataFrame(columns=["ib_log", "imp", "duration", "blocky_var"])
 
     # warmup
-    blocky_params, blocky_indices, duration = sort_with_blocky(params.clone(), improvement_break=1e-2, verbose=False)
+    blocky_params, blocky_indices, duration = sort_with_plas(
+        params.clone(), improvement_break=1e-2, verbose=False
+    )
 
     # for i in range(steps):
     #     ib_log = - ((i / steps) * 8)
 
     for ib_log in [-2, -2.5, -3, -3.5, -4, -4.5, -5, -5.5, -6, -6.5, -7]:
 
-        imp = 10 ** ib_log
+        imp = 10**ib_log
 
-        blocky_params, blocky_indices, duration = sort_with_blocky(params.clone(), improvement_break=imp, verbose=False)
+        blocky_params, blocky_indices, duration = sort_with_plas(
+            params.clone(), improvement_break=imp, verbose=False
+        )
 
         assert (
             params.to(torch.int64).sum().item()
@@ -382,6 +386,7 @@ def blocky_vad(params):
     df.to_csv("/tmp/blocky_vad.csv", index=False)
 
     import sys
+
     sys.exit(0)
 
 
@@ -428,7 +433,9 @@ def pssm():
     # --------------------------------------------
     # BLOCKY-SSM
     if COMPUTE_BLOCKY:
-        blocky_params, blocky_indices = sort_with_blocky(org_params.clone(), improvement_break=1e-4, verbose=True)
+        blocky_params, blocky_indices = sort_with_plas(
+            org_params.clone(), improvement_break=1e-4, verbose=True
+        )
         imshow_torch(
             "blocky_sorted",
             blocky_params,
@@ -484,7 +491,7 @@ def pssm():
             print(f"FLAS DPQ: {flas_dist:.4f}", end=", ")
 
         print("")
-    
+
     if COMPUTE_BLOCKY:
         blocky_var = compute_vad(blocky_params.permute(1, 2, 0).cpu().numpy())
         print(f"BLOCKY var: {blocky_var:.4f}", end=", ")

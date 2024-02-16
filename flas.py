@@ -10,6 +10,8 @@ import time
 import lap
 import click
 
+from random_grid import generate_random_colors
+
 
 def plot_grid(*images, figsize=10, fignumber="Filter", titles=None, occurences=False):
     """Plots any given number of images"""
@@ -50,12 +52,6 @@ def plot_grid(*images, figsize=10, fignumber="Filter", titles=None, occurences=F
             ax.set_title(titles[i], fontsize=figsize * 3)
 
     plt.show()
-
-
-def generate_random_colors(nx=32, ny=32, reproduce_paper=True):
-    """Generates a random uniform RGB Image"""
-    np.random.seed(3)
-    return np.random.uniform(0, 255, size=(nx, ny, 3)).astype(int)
 
 
 def squared_l2_distance(q, p):
