@@ -35,5 +35,13 @@
             "console": "integratedTerminal",
             "args": [],
         },
+        {
+            "name": "VAD over improvement break",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "eval_plas_vad_over_break.py",
+            "console": "integratedTerminal",
+            "args": [],
+        },
     ]
 }
