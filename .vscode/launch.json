@@ -8,10 +8,13 @@
             "name": "Compare PLAS and FLAS",
             "type": "debugpy",
             "request": "launch",
-            "program": "eval.py",
+            "program": "compare_plas_flas.py",
             "console": "integratedTerminal",
             "args": [
-                "--size=64"
+                "--size=64",
+                "--no-compute-flas",
+                // "--no-compute-plas",
+                // "--output-dir=/tmp/plas-flas-compare",
             ],
         },
         {

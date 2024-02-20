@@ -1,6 +1,8 @@
+# Run PLAS with different improvement breaks and measure VAD
+# Figure 8 in https://arxiv.org/abs/2312.13299 (Self-Organizing Gaussian Grids paper) created from this script
+# Results are saved in CSV files
+
 import torch
-import numpy as np
-import random
 import pandas as pd
 import time
 from datetime import datetime
