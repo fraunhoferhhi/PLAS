@@ -10,7 +10,7 @@ from random_grid import generate_random_colors
 from plas import sort_with_plas
 
 
-def runtime_over_size(device):
+def runtime_over_size(device, start_pow_2=4, end_pow_2=14, step=1):
 
     print(f"Running benchmark on {device}...")
 
@@ -18,7 +18,7 @@ def runtime_over_size(device):
 
     df = pd.DataFrame(columns=["i", "size", "duration", "vad"])
 
-    for i in range(4, 7):
+    for i in range(start_pow_2, end_pow_2, step):
 
         size = 2**i
 
