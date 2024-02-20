@@ -9,7 +9,7 @@ from random_grid import generate_random_colors
 from plas import sort_with_plas
 
 
-def vad_over_break(device, size=32):
+def vad_over_break(device, size=512):
 
     print(f"Running benchmark on {device}...")
 
@@ -34,10 +34,12 @@ def vad_over_break(device, size=32):
 
         imp = 10**ib_log
 
+        local_params = params.clone()
+
         start_time = time.time()
 
         sorted_params, sorted_indices = sort_with_plas(
-            params.clone(), improvement_break=imp, verbose=False
+            local_params, improvement_break=imp, verbose=False
         )
 
         duration = time.time() - start_time

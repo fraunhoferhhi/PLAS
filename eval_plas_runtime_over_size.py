@@ -28,10 +28,12 @@ def runtime_over_size(device, start_pow_2=4, end_pow_2=14, step=1):
         params = torch.from_numpy(params_np).permute(2, 0, 1).float().to(device)
         assert params.shape[1] == params.shape[2]
 
+        local_params = params.clone()
+
         start = time.time()
 
         sorted_params, sorted_indices = sort_with_plas(
-            params.clone(), improvement_break=1e-4, verbose=False
+            local_params, improvement_break=1e-4, verbose=False
         )
 
         duration = time.time() - start
