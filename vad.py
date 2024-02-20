@@ -11,6 +11,9 @@ def compute_vad(image):
     Returns:
     float: The variance of absolute differences.
     """
+
+    image = image.astype(np.float32)
+
     # Calculate absolute differences in x and y directions
     diff_x = np.abs(np.diff(image, axis=1))
     diff_y = np.abs(np.diff(image, axis=0))
