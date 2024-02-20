@@ -1,10 +1,20 @@
+# Parallel Linear Assignment Sorting (PLAS)
+
+# A high-level description of the algorithm can be found in the Section "Sorting High Dimensional Gaussians into 2D Grids" in https://arxiv.org/abs/2312.13299
+
+# HERE BE DRAGONS
+
+# Pixel shuffling:
+# The current implementation contains a layer of complexity that is not necessary for the algorithm to work. In an earlier version,
+# it was using PixelUnshuffle and PixelShuffle to create candidate groups for sorting with different stride lengths. The current
+# version randomizes candidate groups of 4 over the whole block. The shuffling is disabled, and no longer functional.
+
 import numpy as np
 import torch
 import time
 import kornia
 import functools
 import itertools
-import cv2
 from tqdm import tqdm
 import os
 from collections import defaultdict
@@ -12,10 +22,13 @@ from collections import defaultdict
 # TODO settle on either torchvision or kornia
 
 SHOW_VIS = False
-
 WRITE_IMG_TMP = False
 WRITE_FOLDER = "/tmp/blockyssm"
 WRITE_IDX = defaultdict(int)
+
+if SHOW_VIS or WRITE_IMG_TMP:
+    import cv2
+
 
 # TODO perf: distance calculation done for the whole array after sorting for early breaking
 #            we do the distance calculation already for the sorting, so we could use that
@@ -318,7 +331,7 @@ def reorder_blocky_shuffled(
 
 
 # @torch.compile
-def reorder_blocky(
+def reorder_plas(
     params,
     grid_indices,
     min_block_size,
@@ -330,63 +343,23 @@ def reorder_blocky(
     # Filter the map vectors using the actual filter radius
     target = low_pass_filter(params, filter_size_x, filter_size_y)
 
-    # imshow_torch("target-init", target)
-    # import sys
-    # sys.exit(0)
-
-    # choice A)
-    # for blocksize = img / 2, 4, 8, 16.. until min blocksize, e.g. 16x16?
-
-    # choice B)
-    # unshuffle pixels: r=1, 2, 4, 8, ... until one shuffled block hits min blocksize, e.g. 16x16?
-    # for every layer, split further into blocks, always the same size blocks
-    # -> this was implemented
-
     sidelen = params.shape[1]
-
-    # sidelen_divisors = divisors(sidelen)
-
-    # we solve the assignments in groups of 4 pixels
-    # block_size_cands = [size for size in sidelen_divisors if size * size % 4 == 0]
-
-    # find closest sidelen divisor that is filter_size_x or larger
-    # block_size = (
-    #     min(size for size in block_size_cands if size >= filter_size_x) or sidelen
-    # )
-
-    # adaptive block size from the filter size
-    # block_size = max(block_size, min_block_size)
-
-    # max_divisor = sidelen // block_size
-
-    # block_divisors = divisors(max_divisor)[::-1]
-
-    # IMPORTANT this completely disables the pixel unshuffling
-    # leading to all operations being performed on blocks, no strides
-    # TODO could get rid of all the pixel unshuffle code, simplify a lot
-    # TODO perhaps merge with PSSM code
-    # block_divisors = block_divisors[-1:]
-    # block_divisor = block_divisors[-1]
-
-    # assert sidelen % block_size == 0
 
     block_size = filter_size_x + 1
 
     block_size = min(block_size, sidelen)
 
-    # it mus be possible to form groups of 4 pixels
+    # it must be possible to form groups of 4 pixels
     block_size = block_size // 2 * 2
     block_size = max(block_size, min_block_size)
 
-    block_divisor = 1
     # IMPORTANT this completely disables the pixel unshuffling
     # leading to all operations being performed on blocks, no strides
     # TODO could get rid of all the pixel unshuffle code, simplify a lot
-    # TODO perhaps merge with PSSM code
     # 231109: the new divisor code that allows for non-multiples of min block size size
     # probably breaks this anyway?
 
-    # pixel_unshuffled_img_sidelen = sidelen // block_divisor
+    block_divisor = 1
 
     num_pixel_blocks = sidelen // block_size
 
@@ -508,9 +481,13 @@ def radius_seq(max_radius, radius_update):
             break
 
 
-def sort_with_plas(params, min_block_size=16, improvement_break=1e-5, verbose=False):
-    torch.manual_seed(42)
-    np.random.seed(7)
+def sort_with_plas(
+    params, min_block_size=16, improvement_break=1e-5, seed=None, verbose=False
+):
+
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
     grid_shape = params.shape[1:]
     H, W = grid_shape
@@ -521,9 +498,6 @@ def sort_with_plas(params, min_block_size=16, improvement_break=1e-5, verbose=Fa
     start_time = time.time()
 
     radius_f = max(H, W) / 2 - 1
-
-    # iters = int(np.sqrt(H) * 50)
-
     radii = list(radius_seq(radius_f, 0.95))
 
     if verbose:
@@ -531,21 +505,22 @@ def sort_with_plas(params, min_block_size=16, improvement_break=1e-5, verbose=Fa
     else:
         pbar = None
 
-    grid_indices = (
-        torch.arange(0, H * W, dtype=torch.int32, device=params.device)
-        .reshape(grid_shape)
-        .unsqueeze(0)
-    )
-
     total_num_reorders = 0
 
     with torch.inference_mode():
+
+        grid_indices = (
+            torch.arange(0, H * W, dtype=torch.int32, device=params.device)
+            .reshape(grid_shape)
+            .unsqueeze(0)
+        )
+
         for radius in radii:
             # compute filtersize that is smaller than any side of the grid
             filter_size_x = min(W - 1, int(2 * radius + 1))
             filter_size_y = min(H - 1, int(2 * radius + 1))
 
-            params, grid_indices, num_reorders = reorder_blocky(
+            params, grid_indices, num_reorders = reorder_plas(
                 params,
                 grid_indices,
                 min_block_size,
@@ -567,4 +542,4 @@ def sort_with_plas(params, min_block_size=16, improvement_break=1e-5, verbose=Fa
             f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with BLOCKY-SSM in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
         )
 
-    return params, grid_indices  # , duration
+    return params, grid_indices
