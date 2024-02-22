@@ -3,6 +3,8 @@ Sorting multi-dimensional data into locally smooth 2D grids.
 
 The algorithm will sort tensors of shape *(C, n, n)*. It reorders the elements along the last two dimensions (grid columns and rows) with the attempt to minimize the $L^2$-distance between neighboring elements in $x$ and $y$ direction.
 
+This method was developed for [Compact 3D Scene Representation via Self-Organizing Gaussian Grids](https://github.com/fraunhoferhhi/Self-Organizing-Gaussians).
+
 ### Example
 
 We can use PLAS to sort the pixels of an image, where *C=3* from the three color channels of the image. An example implementation can be found in `sort_rgb_img.py`.
