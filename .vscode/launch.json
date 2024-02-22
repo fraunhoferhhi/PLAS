@@ -11,10 +11,10 @@
             "program": "compare_plas_flas.py",
             "console": "integratedTerminal",
             "args": [
-                "--size=64",
+                "--size=256",
                 "--no-compute-flas",
                 // "--no-compute-plas",
-                // "--output-dir=/tmp/plas-flas-compare",
+                "--output-dir=/tmp/plas-flas-compare",
             ],
         },
         {
@@ -58,6 +58,18 @@
                      "--output-rgb-point-cloud-ply", "/data/gaussian_splatting/models/truck/sorted/rgb_points.ply",
             ],
         },
+
+        {
+            "name": "Sort RGB image",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "sort_rgb_img.py",
+            "console": "integratedTerminal",
+            "args": ["--img-path", "img/VanGogh-starry_night.jpg",
+            // "--no-shuffle",
+            ],
+        },
+
 
     ]
 }
