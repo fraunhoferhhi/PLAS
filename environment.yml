@@ -23,8 +23,10 @@ dependencies:
   # - opencv
   - scipy
   - matplotlib
-  # - pandas
-  # - trimesh
+  
+  # example scripts
+  - pandas
+  - trimesh
   # - tensorboard
   # nnc deps
   # - pybind11

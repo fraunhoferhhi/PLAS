@@ -1,15 +1,19 @@
 # A script to sort Gaussians from a .ply file with PLAS.
 
+# The input is a .ply file with the Gaussians, and the output is a .ply file with the sorted Gaussians.
+# For sorting, it is only using the 3D coordinates and the RGB colors (SH DC component) of the Gaussians.
+
 import numpy as np
 import pandas as pd
-import sys
 import torch
 from plyfile import PlyData, PlyElement
+import trimesh as tm
+import click
+import os
 
 from plas import sort_with_plas
+from vad import compute_vad
 
-
-SHUFFLE_INPUT = True
 
 # process fewer elements for development testing
 # DEBUG_TRUNCATE_ELEMENTS = 1_000_000
@@ -49,7 +53,7 @@ def prune_gaussians(df, num_to_keep):
 def SH2RGB(sh):
     return sh * C0 + 0.5
 
-def df_to_ply(df, ply_file):
+def df_to_gs_ply(df, ply_file):
     ply_columns = ['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2',
        'f_rest_0', 'f_rest_1', 'f_rest_2', 'f_rest_3', 'f_rest_4', 'f_rest_5',
        'f_rest_6', 'f_rest_7', 'f_rest_8', 'f_rest_9', 'f_rest_10',
@@ -81,7 +85,7 @@ def df_to_rgb_ply(df, ply_file):
     pcl.export(ply_file)
 
 
-def data_from_ply(ply_file, min_block_size):
+def gs_ply_to_df(ply_file, min_block_size):
     gaussian_ply = tm.load(ply_file)
     ply_data = gaussian_ply.metadata["_ply_raw"]["vertex"]["data"]
     df = pd.DataFrame(ply_data)
@@ -100,7 +104,11 @@ def data_from_ply(ply_file, min_block_size):
 
     return df, sidelen
 
-def sort_gaussians(in_ply_file, out_ply_file, out_rgb_point_cloud_ply_file):
+@click.command()
+@click.option("--input-gs-ply", type=click.Path(exists=True))
+@click.option("--output-gs-ply", type=click.Path())
+@click.option("--output-rgb-point-cloud-ply", type=click.Path())
+def sort_gaussians(input_gs_ply, output_gs_ply, output_rgb_point_cloud_ply):
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -116,12 +124,18 @@ def sort_gaussians(in_ply_file, out_ply_file, out_rgb_point_cloud_ply_file):
 
     min_block_size = 16
 
-    df, sidelen = data_from_ply(in_ply_file, min_block_size)
+    df, sidelen = gs_ply_to_df(input_gs_ply, min_block_size)
 
-    if SHUFFLE_INPUT:
-        df = df.sample(frac=1)
+    orig_vad = compute_vad(df.values.reshape(sidelen, sidelen, -1))
+    print(f"VAD of ply: {orig_vad:.4f}")
 
-    # coords
+    # shuffling the input to avoid getting stuck in a local minimum with the sorting
+    df = df.sample(frac=1)
+
+    shuffled_vad = compute_vad(df.values.reshape(sidelen, sidelen, -1))
+    print(f"VAD of shuffled ply: {shuffled_vad:.4f}")
+
+    # scale coords to [0, COORDS_SCALE] for sorting (original values are kept)
     coords_xyz = df[["x", "y", "z"]].values
     coords_xyz_min = coords_xyz.min()
     coords_xyz_range = coords_xyz.max() - coords_xyz_min
@@ -129,32 +143,36 @@ def sort_gaussians(in_ply_file, out_ply_file, out_rgb_point_cloud_ply_file):
     coords_xyz_norm *= COORDS_SCALE
     coords_torch = torch.from_numpy(coords_xyz_norm).float().to(device)
 
-    # colors
+    # scale colors to [0, RGB_SCALE] for sorting (original values are kept)
     dc_vals = df.loc[:, df.columns.str.startswith("f_dc")].values
     rgb = np.clip(SH2RGB(dc_vals), 0, 1) * RGB_SCALE
     rgb_torch = torch.from_numpy(rgb).float().to(device)
 
+    # params to sort: 6D (3D coords + 3D colors)
     params = torch.cat([coords_torch, rgb_torch], dim=1)
 
     params_torch_grid = params.permute(1, 0).reshape(-1, sidelen, sidelen)
 
-    sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-3)
+    sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-4, verbose=True)
 
     sorted_indices = sorted_grid_indices.flatten().cpu().numpy()
 
     sorted_df = df.iloc[sorted_indices]
-    
-    # full gaussians ply
-    df_to_ply(sorted_df, out_ply_file)
 
-    # xyz + rgb colors point cloud ply
-    df_to_rgb_ply(sorted_df, out_rgb_point_cloud_ply_file)
+    sorted_vad = compute_vad(sorted_df.values.reshape(sidelen, sidelen, -1))
+    print(f"VAD of sorted ply: {sorted_vad:.4f}")
+
+    if output_gs_ply is not None:    
+        os.makedirs(os.path.dirname(output_gs_ply), exist_ok=True)
+        # full gaussians ply
+        df_to_gs_ply(sorted_df, output_gs_ply)
+
+    if output_rgb_point_cloud_ply is not None:
+        os.makedirs(os.path.dirname(output_rgb_point_cloud_ply), exist_ok=True)
+        # xyz + rgb colors point cloud ply
+        df_to_rgb_ply(sorted_df, output_rgb_point_cloud_ply)
 
 
 if __name__ == "__main__":
-    in_ply_file = sys.argv[1]
-    out_gaussian_ply_file = sys.argv[2]
-    out_rgb_point_cloud_ply_file = sys.argv[3]
-
-    sort_gaussians(in_ply_file, out_gaussian_ply_file, out_rgb_point_cloud_ply_file)
+    sort_gaussians()
 

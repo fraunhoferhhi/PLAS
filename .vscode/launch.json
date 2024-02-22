@@ -46,5 +46,18 @@
             "console": "integratedTerminal",
             "args": [],
         },
+
+        {
+            "name": "Sort 3D Gaussians",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "sort_3d_gaussians.py",
+            "console": "integratedTerminal",
+            "args": ["--input-gs-ply", "/data/gaussian_splatting/models/truck/point_cloud/iteration_30000/point_cloud.ply",
+                     "--output-gs-ply", "/data/gaussian_splatting/models/truck/sorted/point_cloud/iteration_504730/point_cloud.ply",
+                     "--output-rgb-point-cloud-ply", "/data/gaussian_splatting/models/truck/sorted/rgb_points.ply",
+            ],
+        },
+
     ]
 }
