@@ -1,7 +1,10 @@
-# A script to sort Gaussians from a .ply file with PLAS.
+# An example script to sort Gaussians from a .ply file with PLAS.
 
 # The input is a .ply file with the Gaussians, and the output is a .ply file with the sorted Gaussians.
 # For sorting, it is only using the 3D coordinates and the RGB colors (SH DC component) of the Gaussians.
+
+# Note that sorting a .ply after training the model is much less efficient than sorting the Gaussians during training,
+# and applying a regularization on the sorted grid. See results int Table 3 of the paper (https://arxiv.org/abs/2312.13299).
 
 import numpy as np
 import pandas as pd
