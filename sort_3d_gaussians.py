@@ -4,13 +4,9 @@ import numpy as np
 import pandas as pd
 import sys
 import torch
-import trimesh as tm
 from plyfile import PlyData, PlyElement
 
-from point_filter import filter_points
-from blockyssm import sort_with_blocky
-
-from torch.profiler import profile, record_function, ProfilerActivity
+from plas import sort_with_plas
 
 
 SHUFFLE_INPUT = True
@@ -24,12 +20,36 @@ RGB_SCALE = 255
 
 C0 = 0.28209479177387814
 
+def prune_gaussians(df, num_to_keep):
+    """Very crude pruning method that uses scaling and opacity to determine the impact of a Gaussian splat.
+       We need this method to drop a few Gaussians to make them fit a square image.
+
+       For a more sophisticated method, see e.g. "LightGaussian: Unbounded 3D Gaussian Compression with 15x Reduction and 200+ FPS"
+       https://arxiv.org/abs/2311.17245
+    """
+
+    # from gaussian model:
+    # self.scaling_activation = torch.exp
+    # self.scaling_inverse_activation = torch.log
+
+    # self.opacity_activation = torch.sigmoid
+    # self.inverse_opacity_activation = inverse_sigmoid
+
+    scaling_act = np.exp
+    opacity_act = lambda x: 1 / (1 + np.exp(-x))
+
+    # does this perhaps remove too many small points in the center of the scene, that form a bigger object?
+    df["impact"] = scaling_act((df["scale_0"] + df["scale_1"] + df["scale_2"]).astype(np.float64)) * opacity_act(df["opacity"].astype(np.float64))
+
+    df = df.sort_values("impact", ascending=False)
+    df = df.head(num_to_keep)
+
+    return df
+
 def SH2RGB(sh):
     return sh * C0 + 0.5
 
 def df_to_ply(df, ply_file):
-    # TODO code duplicaten jxl_to_ply
-
     ply_columns = ['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2',
        'f_rest_0', 'f_rest_1', 'f_rest_2', 'f_rest_3', 'f_rest_4', 'f_rest_5',
        'f_rest_6', 'f_rest_7', 'f_rest_8', 'f_rest_9', 'f_rest_10',
@@ -73,10 +93,10 @@ def data_from_ply(ply_file, min_block_size):
     num_gaussians = len(df)
 
     sidelen = int(np.sqrt(num_gaussians))
-
     sidelen = sidelen // min_block_size * min_block_size
 
-    df = filter_points(df, sidelen * sidelen)
+    # throw away a few (small * transparent) Gaussians to make the number of Gaussians fit into a square image
+    df = prune_gaussians(df, sidelen * sidelen)
 
     return df, sidelen
 
@@ -118,7 +138,7 @@ def sort_gaussians(in_ply_file, out_ply_file, out_rgb_point_cloud_ply_file):
 
     params_torch_grid = params.permute(1, 0).reshape(-1, sidelen, sidelen)
 
-    sorted_coords, sorted_grid_indices, duration = sort_with_blocky(params_torch_grid, min_block_size, improvement_break=1e-3)
+    sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-3)
 
     sorted_indices = sorted_grid_indices.flatten().cpu().numpy()
 
@@ -136,16 +156,5 @@ if __name__ == "__main__":
     out_gaussian_ply_file = sys.argv[2]
     out_rgb_point_cloud_ply_file = sys.argv[3]
 
-    # this only produces one CUDA conv3d?!
-    # with profile(
-    #     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-    #     with_stack=True,
-    #     experimental_config=torch._C._profiler._ExperimentalConfig(verbose=True)
-    # ) as prof:
-
     sort_gaussians(in_ply_file, out_gaussian_ply_file, out_rgb_point_cloud_ply_file)
-
-    # prof.export_stacks("/tmp/profiler_stacks.txt", "self_cuda_time_total")
-    # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=2))
-
 
