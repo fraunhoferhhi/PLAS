@@ -40,7 +40,7 @@ def sort_image(img_path, shuffle):
     # reshape the image to be a square
     img_trunc_shuf_sq = img_trunc.reshape(-1, sidelen, sidelen)
 
-    sorted_img, grid_indices = sort_with_plas(img_trunc_shuf_sq, improvement_break=1e-4, verbose=True)
+    sorted_img, grid_indices = sort_with_plas(img_trunc_shuf_sq, improvement_break=1e-4, border_type_x="reflect", border_type_y="reflect", verbose=True)
 
     output_file = os.path.basename(img_path).split(".")[0]
     if shuffle:

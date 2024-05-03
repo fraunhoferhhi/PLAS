@@ -92,20 +92,20 @@ def l2_dist(a, b):
     return distance_with_batch_dim(a, b).sum().item()
 
 
-def low_pass_filter(img, filter_size_x, filter_size_y):
+def low_pass_filter(img, filter_size_x, filter_size_y, border_type_x, border_type_y):
 
     blurred_x = kornia.filters.gaussian_blur2d(
         img.unsqueeze(0),
         kernel_size=(1, filter_size_x),
         sigma=(filter_size_y, filter_size_x),
-        border_type="reflect",
+        border_type=border_type_x,
     ).squeeze(0)
 
     blurred_xy = kornia.filters.gaussian_blur2d(
         blurred_x.unsqueeze(0),
         kernel_size=(filter_size_y, 1),
         sigma=(filter_size_y, filter_size_x),
-        border_type="reflect",
+        border_type=border_type_y,
     ).squeeze(0)
 
     return blurred_xy
@@ -337,11 +337,15 @@ def reorder_plas(
     min_block_size,
     filter_size_x,
     filter_size_y,
+    border_type_x,
+    border_type_y,
     improvement_break,
     pbar,
 ):
     # Filter the map vectors using the actual filter radius
-    target = low_pass_filter(params, filter_size_x, filter_size_y)
+    target = low_pass_filter(
+        params, filter_size_x, filter_size_y, border_type_x, border_type_y
+    )
 
     sidelen = params.shape[1]
 
@@ -482,8 +486,21 @@ def radius_seq(max_radius, radius_update):
 
 
 def sort_with_plas(
-    params, min_block_size=16, improvement_break=1e-5, seed=None, verbose=False
+    params,
+    min_block_size=16,
+    improvement_break=1e-5,
+    border_type_x="circular",
+    border_type_y="reflect",
+    seed=None,
+    verbose=False,
 ):
+    """ Sorts a set of parameters in a 2xn grid using the Parallel Linear Assignment Sorting (PLAS) algorithm.
+
+    Args:
+        border_type_x/y (str): Border for the Gaussian blur that is performed to create the targets for sorting.
+        The expected modes are: 'constant', 'reflect', 'replicate' or 'circular' (kornia gaussian_blur2d border_type).
+        x defaults to 'circular', y defaults to 'reflect': this allows for seamless resampling 1D data into square 2D grids.
+    """
 
     if seed is not None:
         torch.manual_seed(seed)
@@ -526,6 +543,8 @@ def sort_with_plas(
                 min_block_size,
                 filter_size_x,
                 filter_size_y,
+                border_type_x,
+                border_type_y,
                 improvement_break,
                 pbar=pbar,
             )
