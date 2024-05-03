@@ -23,7 +23,7 @@ from collections import defaultdict
 
 SHOW_VIS = False
 WRITE_IMG_TMP = False
-WRITE_FOLDER = "/tmp/blockyssm"
+WRITE_FOLDER = "/tmp/plas-dbg"
 WRITE_IDX = defaultdict(int)
 
 if SHOW_VIS or WRITE_IMG_TMP:
@@ -98,7 +98,7 @@ def low_pass_filter(img, filter_size_x, filter_size_y):
         img.unsqueeze(0),
         kernel_size=(1, filter_size_x),
         sigma=(filter_size_y, filter_size_x),
-        border_type="circular",
+        border_type="reflect",
     ).squeeze(0)
 
     blurred_xy = kornia.filters.gaussian_blur2d(
@@ -539,7 +539,7 @@ def sort_with_plas(
 
     if verbose:
         print(
-            f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with BLOCKY-SSM in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
+            f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with PLAS in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
         )
 
     return params, grid_indices
