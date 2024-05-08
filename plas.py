@@ -511,12 +511,9 @@ def sort_with_plas(
     grid_shape = params.shape[1:]
     H, W = grid_shape
 
-    # not implemented for non-square aspect ratios
-    assert H == W
-
     start_time = time.time()
 
-    radius_f = max(H, W) / 2 - 1
+    radius_f = min(H, W) / 2 - 1
     radii = list(radius_seq(max_radius=radius_f, min_radius=min_blur_radius, radius_update=0.95))
 
     if verbose:
@@ -560,7 +557,7 @@ def sort_with_plas(
 
     if verbose:
         print(
-            f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with PLAS in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
+            f"\nSorted {params.shape[2]}x{params.shape[1]}={params.shape[1] * params.shape[2]} vectors @ {params.shape[0]} dimensions with PLAS in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
         )
 
     return params, grid_indices
