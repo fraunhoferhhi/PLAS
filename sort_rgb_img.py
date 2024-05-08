@@ -29,41 +29,34 @@ def sort_image(img_path, shuffle):
     image = Image.open(img_path).convert("RGB")
     tensor_image = torchvision.transforms.ToTensor()(image).to(device)
 
-    # Currently only support square images, so
-    sidelen = int(math.sqrt(tensor_image.shape[1] * tensor_image.shape[2]))
-
-    # truncate the image
-    img_trunc = tensor_image.flatten(start_dim=1)[:, :sidelen * sidelen]
-
-    # TODO: not really a useful vad with the truncated reshaped image
-    # -> fix after supporting non-square images
-    vad_img_trunc = compute_vad(img_trunc.reshape(-1, sidelen, sidelen).permute(1, 2, 0).cpu().numpy() * 255)
+    vad_img = compute_vad(tensor_image.permute(1, 2, 0).cpu().numpy() * 255)
+    print(f"VAD of image: {vad_img:.4f}")
 
     if shuffle:
         # shuffle the image to avoid local minimum
-        img_trunc = img_trunc[:, torch.randperm(sidelen * sidelen)]
+        tensor_image = tensor_image.flatten(start_dim=1)[:, torch.randperm(tensor_image.shape[1] * tensor_image.shape[2])].reshape(tensor_image.shape)
 
         # TODO: see above for non-square images
-        vad_img_trunc_shuf = compute_vad(img_trunc.reshape(-1, sidelen, sidelen).permute(1, 2, 0).cpu().numpy() * 255)
+        vad_img_shuf = compute_vad(tensor_image.permute(1, 2, 0).cpu().numpy() * 255)
+        print(f"VAD of shuffled image: {vad_img_shuf:.4f}")
 
-    # reshape the image to be a square
-    img_trunc_shuf_sq = img_trunc.reshape(-1, sidelen, sidelen)
 
-    sorted_img, grid_indices = sort_with_plas(img_trunc_shuf_sq, improvement_break=1e-4, border_type_x="reflect", border_type_y="reflect", verbose=True)
+    sorted_img, grid_indices = sort_with_plas(tensor_image, improvement_break=1e-4, min_blur_radius=1,
+                                              border_type_x="reflect", border_type_y="reflect", verbose=True)
 
-    output_file = os.path.basename(img_path).split(".")[0]
+    output_file_stem = os.path.join(os.path.dirname(img_path), os.path.basename(img_path).split(".")[0])
     if shuffle:
-        output_file += "_shuffled"
-    output_file += "_sorted.png"
+        output_file_stem += "_shuffled"
 
-    torchvision.utils.save_image(sorted_img, os.path.join(os.path.dirname(img_path), output_file))
+    torchvision.utils.save_image(sorted_img, f"{output_file_stem}.png")
 
     vad_sorted_img = compute_vad(sorted_img.permute(1, 2, 0).cpu().numpy() * 255)
-
-    print(f"VAD of image: {vad_img_trunc:.4f}")
-    if shuffle:
-        print(f"VAD of shuffled image: {vad_img_trunc_shuf:.4f}")
     print(f"VAD of sorted image: {vad_sorted_img:.4f}")
+
+    if not shuffle:
+        # TODO restores in the wrong direction
+        restored_img = tensor_image.flatten(start_dim=1)[:, grid_indices].squeeze(1)
+        torchvision.utils.save_image(restored_img, f"{output_file_stem}_restored.png")
 
 if __name__ == "__main__":
     sort_image()
