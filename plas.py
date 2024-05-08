@@ -476,18 +476,19 @@ def reorder_plas(
     return params, grid_indices, num_reorders
 
 
-def radius_seq(max_radius, radius_update):
+def radius_seq(max_radius, min_radius, radius_update):
     radius = max_radius
     while True:
         yield int(radius)
         radius *= radius_update
-        if radius < 1:
+        if radius < min_radius:
             break
 
 
 def sort_with_plas(
     params,
     min_block_size=16,
+    min_blur_radius=1,
     improvement_break=1e-5,
     border_type_x="circular",
     border_type_y="reflect",
@@ -498,8 +499,9 @@ def sort_with_plas(
 
     Args:
         border_type_x/y (str): Border for the Gaussian blur that is performed to create the targets for sorting.
-        The expected modes are: 'constant', 'reflect', 'replicate' or 'circular' (kornia gaussian_blur2d border_type).
-        x defaults to 'circular', y defaults to 'reflect': this allows for seamless resampling 1D data into square 2D grids.
+                               The expected modes are: 'constant', 'reflect', 'replicate' or 'circular' (kornia gaussian_blur2d border_type).
+                               x defaults to 'circular', y defaults to 'reflect': this allows for seamless resampling 1D data into square 2D grids.
+        min_blur_radius: Last/smallest blur radius to apply before stopping sort. Defaults to 1 for optimal sort. Increase for earlier stops.
     """
 
     if seed is not None:
@@ -515,7 +517,7 @@ def sort_with_plas(
     start_time = time.time()
 
     radius_f = max(H, W) / 2 - 1
-    radii = list(radius_seq(radius_f, 0.95))
+    radii = list(radius_seq(max_radius=radius_f, min_radius=min_blur_radius, radius_update=0.95))
 
     if verbose:
         pbar = tqdm(radii)
