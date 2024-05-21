@@ -18,9 +18,7 @@ from flas import (
     distance_preservation_quality,
 )
 
-from plas import sort_with_plas
-
-from vad import compute_vad
+from plas import sort_with_plas, compute_vad
 
 
 def imshow_cv2(name, img):

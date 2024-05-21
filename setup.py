@@ -25,8 +25,9 @@ setup(
         'opencv-python',
 
         # eval/flas
-        'las',
-        'matplotlib'
+        'lap',
+        'matplotlib',
+        'scipy'
     ],
     entry_points={
         'console_scripts': [
