@@ -19,7 +19,7 @@ The sorted output contains the same pixels as the input image, reordered to have
 
 ### Install
 
-Create a virtual environment with Python 3.10 and PyTorch. Then 
+Create a virtual environment with Python 3.10 and install PyTorch with your intended compute platform (https://pytorch.org/get-started/locally/). Then:
 
 ```bash
 pip install git+https://github.com/fraunhoferhhi/PLAS.git
