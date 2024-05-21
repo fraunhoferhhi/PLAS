@@ -7,9 +7,8 @@ import pandas as pd
 import time
 from datetime import datetime
 
-from vad import compute_vad
 from random_grid import generate_random_colors
-from plas import sort_with_plas
+from plas import sort_with_plas, compute_vad
 
 
 def runtime_over_size(device, start_pow_2=4, end_pow_2=14, step=1):

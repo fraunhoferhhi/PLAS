@@ -58,6 +58,18 @@ Random grid of RGB colors |  Sorted with PLAS | Sorted with FLAS|
 
 
 
+#### Run PLAS on grids of different sizes and measure runtime
+
+```bash
+python eval/eval_plas_runtime_over_size.py
+```
+
+#### Run PLAS with different improvement breaks and measure VAD
+
+```bash
+python eval/eval_plas_vad_over_break.py
+```
+
 ### Preparing data
 
 Currently only square grids are supported in the implementation. Data needs to be truncated and reshaped into shape *(C, n, n)* before being passed into the sorting method.

@@ -6,9 +6,8 @@ import torch
 import pandas as pd
 import time
 from datetime import datetime
-from vad import compute_vad
 from random_grid import generate_random_colors
-from plas import sort_with_plas
+from plas import sort_with_plas, compute_vad
 
 
 def vad_over_break(device, size=512):
