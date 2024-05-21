@@ -90,7 +90,7 @@ def pssm(size, show_vis, compute_plas, compute_flas, output_dir):
     # PLAS
     if compute_plas:
         plas_sorted_params, plas_sorted_indices = sort_with_plas(
-            org_params.clone(), improvement_break=1e-4, seed=42, verbose=True
+            org_params.clone(), border_type_x="reflect", improvement_break=1e-4, seed=42, verbose=True
         )
         if show_vis:
             imshow_torch(

@@ -46,6 +46,17 @@ python examples/sort_3d_gaussians.py --input-gs-ply /your_data/iteration_30000/p
        --output-gs-ply point_cloud_sorted.ply
 ```
 
+#### Compare PLAS and FLAS on a random RBG grid
+
+```bash
+python eval/compare_plas_flas.py
+```
+
+Random grid of RGB colors |  Sorted with PLAS | Sorted with FLAS|
+:-------------------------:|:-------------------------:|:-------------------------:
+![256x256 random RGB colors](/img/random_grid.pny)  | ![Sorted 256x256 random RGB colors with PLAS](/img/grid_PLAS.png) | ![Sorted 256x256 random RGB colors with FLAS](/img/grid_FLAS.png) |
+
+
 
 ### Preparing data
 
