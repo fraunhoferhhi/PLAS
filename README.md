@@ -33,14 +33,17 @@ import plas
 plas.sort_with_plas(...)
 ```
 
-There is not documentation yet. Have a look at the `examples/` sources for parameters and return values usage. The examples can be run like this:
+There is not documentation yet. Have a look at the `examples/` sources for parameters and return values usage.
 
+#### Sort the example image from the repo:
 ```bash
 python examples/sort_rgb_img.py --img-path img/VanGogh-starry_night.jpg
 ```
 
+#### Sort a 3DGS point_cloud.ply file:
 ```bash
-python examples/sort_3d_gaussians.py --input-gs-ply /your_data/gaussian_splatting/truck/point_cloud/iteration_30000/point_cloud.ply --output-gs-ply point_cloud_sorted.ply
+python examples/sort_3d_gaussians.py --input-gs-ply /your_data/iteration_30000/point_cloud.ply \
+       --output-gs-ply point_cloud_sorted.ply
 ```
 
 
