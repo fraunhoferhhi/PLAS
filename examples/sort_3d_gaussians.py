@@ -14,8 +14,7 @@ import trimesh as tm
 import click
 import os
 
-from plas import sort_with_plas
-from vad import compute_vad
+from plas import sort_with_plas, compute_vad
 
 
 # process fewer elements for development testing

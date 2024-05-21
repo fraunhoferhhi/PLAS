@@ -9,7 +9,7 @@ import torchvision
 import click
 import os
 
-from vad import compute_vad
+from plas import compute_vad
 
 @click.command()
 @click.option("--img-path", type=click.Path(exists=True))
