@@ -71,7 +71,7 @@ python eval/eval_plas_runtime_over_size.py
 
 These values were measured with an *NVidia RTX 4090*:
 
-![Graph showing PLAS performance](img/PLAS_perf.pdf)
+![Graph showing PLAS performance](img/PLAS_perf_eval.png)
 
 
 #### Run PLAS with different improvement breaks and measure VAD
@@ -84,7 +84,7 @@ python eval/eval_plas_vad_over_break.py
 
 These values were measured with an *NVidia RTX 4090* on a random `512x512x3` grid:
 
-![Graph showing vad over ib](img/PLAS_vad_vs_ib.pdf)
+![Graph showing vad over ib](img/PLAS_vad_vs_ib.png)
 
 
 ### Preparing data
