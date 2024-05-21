@@ -8,7 +8,7 @@ This method was developed for [Compact 3D Scene Representation via Self-Organizi
 
 ### Example
 
-We can use PLAS to sort the pixels of an image, where *C=3* from the three color channels of the image. An example implementation can be found in `sort_rgb_img.py`.
+We can use PLAS to sort the pixels of an image, where *C=3* from the three color channels of the image. An example implementation can be found in `examples/sort_rgb_img.py`.
 
 *Starry Night* by Vincent van Gogh             |  *Sorted Night* with PLAS
 :-------------------------:|:-------------------------:
@@ -33,16 +33,19 @@ import plas
 plas.sort_with_plas(...)
 ```
 
-There is not documentation yet. Have a look at the `examples/` sources for parameters and return values usage.
+There is no documentation yet. Have a look at the `examples/` sources for parameters and return values usage.
 
-#### Sort the example image from the repo:
+#### Sort the Starry Night example image from the repo:
 ```bash
 python examples/sort_rgb_img.py --img-path img/VanGogh-starry_night.jpg
 ```
 
 #### Sort a 3DGS point_cloud.ply file:
+
+Sort the Gaussians of a trained 3DGS scene (none provided in the repo):
+
 ```bash
-python examples/sort_3d_gaussians.py --input-gs-ply /your_data/iteration_30000/point_cloud.ply \
+python examples/sort_3d_gaussians.py --input-gs-ply /data/iteration_30000/point_cloud.ply \
        --output-gs-ply point_cloud_sorted.ply
 ```
 
@@ -54,21 +57,35 @@ python eval/compare_plas_flas.py
 
 Random grid of RGB colors |  Sorted with PLAS | Sorted with FLAS|
 :-------------------------:|:-------------------------:|:-------------------------:
-![256x256 random RGB colors](/img/random_grid.pny)  | ![Sorted 256x256 random RGB colors with PLAS](/img/grid_PLAS.png) | ![Sorted 256x256 random RGB colors with FLAS](/img/grid_FLAS.png) |
+![256x256 random RGB colors](/img/random_rgb_grid.png)  | ![Sorted 256x256 random RGB colors with PLAS](/img/grid_PLAS.png) | ![Sorted 256x256 random RGB colors with FLAS](/img/grid_FLAS.png) |
 
 
 
 #### Run PLAS on grids of different sizes and measure runtime
 
+Evaluates the runtime of PLAS over the side length of the 2D grid. Uses 3 layers for the grids.
+
 ```bash
 python eval/eval_plas_runtime_over_size.py
 ```
 
+These values were measured with an *NVidia RTX 4090*:
+
+![Graph showing PLAS performance](img/PLAS_perf.pdf)
+
+
 #### Run PLAS with different improvement breaks and measure VAD
+
+Evaluates the behavior of PLAS under different break thresholds. Decreasing the relative L2 threshold trades off additional sorting quality for longer runtime.
 
 ```bash
 python eval/eval_plas_vad_over_break.py
 ```
+
+These values were measured with an *NVidia RTX 4090* on a random `512x512x3` grid:
+
+![Graph showing vad over ib](img/PLAS_vad_vs_ib.pdf)
+
 
 ### Preparing data
 
