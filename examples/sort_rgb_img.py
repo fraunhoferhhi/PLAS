@@ -1,15 +1,15 @@
 # Load an image and sort it using the PLAS algorithm
 # The output is saved in the same directory as the input image, with the suffix "_sorted.png" added to the filename.
+import sys
+sys.path.append(".")
 
 from PIL import Image
-from plas import sort_with_plas
+from plas import sort_with_plas, compute_vad, avg_L2_dist_between_neighbors
 import math
 import torch
 import torchvision
 import click
 import os
-
-from plas import compute_vad
 
 @click.command()
 @click.option("--img-path", type=click.Path(exists=True))
@@ -38,6 +38,7 @@ def sort_image(img_path, shuffle):
     # TODO: not really a useful vad with the truncated reshaped image
     # -> fix after supporting non-square images
     vad_img_trunc = compute_vad(img_trunc.reshape(-1, sidelen, sidelen).permute(1, 2, 0).cpu().numpy() * 255)
+    anl2_img_trunc = avg_L2_dist_between_neighbors(img_trunc.reshape(-1, sidelen, sidelen).cpu().numpy())
 
     if shuffle:
         # shuffle the image to avoid local minimum
@@ -45,11 +46,12 @@ def sort_image(img_path, shuffle):
 
         # TODO: see above for non-square images
         vad_img_trunc_shuf = compute_vad(img_trunc.reshape(-1, sidelen, sidelen).permute(1, 2, 0).cpu().numpy() * 255)
+        anl2_img_trunc_shuf = avg_L2_dist_between_neighbors(img_trunc.reshape(-1, sidelen, sidelen).cpu().numpy())
 
     # reshape the image to be a square
     img_trunc_shuf_sq = img_trunc.reshape(-1, sidelen, sidelen)
 
-    sorted_img, grid_indices = sort_with_plas(img_trunc_shuf_sq, improvement_break=1e-4, border_type_x="reflect", border_type_y="reflect", verbose=True)
+    sorted_img, grid_indices = sort_with_plas(img_trunc_shuf_sq, improvement_break=1e-4, border_type_x="reflect", border_type_y="reflect", verbose=True, record_sorting_progress=True)
 
     output_file = os.path.basename(img_path).split(".")[0]
     if shuffle:
@@ -59,11 +61,12 @@ def sort_image(img_path, shuffle):
     torchvision.utils.save_image(sorted_img, os.path.join(os.path.dirname(img_path), output_file))
 
     vad_sorted_img = compute_vad(sorted_img.permute(1, 2, 0).cpu().numpy() * 255)
+    anl2_sorted_img = avg_L2_dist_between_neighbors(sorted_img.cpu().numpy())
 
-    print(f"VAD of image: {vad_img_trunc:.4f}")
+    print(f"VAD/ANL2 of image: {vad_img_trunc:.4f}/{anl2_img_trunc:.4f}")
     if shuffle:
-        print(f"VAD of shuffled image: {vad_img_trunc_shuf:.4f}")
-    print(f"VAD of sorted image: {vad_sorted_img:.4f}")
+        print(f"VAD/ANL2 of shuffled image: {vad_img_trunc_shuf:.4f}/{anl2_img_trunc_shuf:.4f}")
+    print(f"VAD/ANL2 of sorted image: {vad_sorted_img:.4f}/{anl2_sorted_img:.4f}")
 
 if __name__ == "__main__":
     sort_image()

@@ -51,25 +51,37 @@
             "name": "Sort 3D Gaussians",
             "type": "debugpy",
             "request": "launch",
-            "program": "sort_3d_gaussians.py",
+            "program": "examples/sort_3d_gaussians.py",
             "console": "integratedTerminal",
-            "args": ["--input-gs-ply", "/data/gaussian_splatting/models/truck/point_cloud/iteration_30000/point_cloud.ply",
+            "args": ["--input-gs-ply", "C:\\Users\\helms\\Documents\\Data\\Gaussian Splatting\\gs_Ulf_s_Oleander.ply",
                      "--output-gs-ply", "/data/gaussian_splatting/models/truck/sorted/point_cloud/iteration_504730/point_cloud.ply",
                      "--output-rgb-point-cloud-ply", "/data/gaussian_splatting/models/truck/sorted/rgb_points.ply",
             ],
         },
 
         {
+            "name": "Eval Permutation Entropy Effect",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "eval/eval_permutation_effect.py",
+            "console": "integratedTerminal",
+            "args": ["--input-gs-ply", "C:\\Users\\helms\\Documents\\Data\\Gaussian Splatting\\gs_Ulf_s_Oleander.ply",
+                    "--sample-size=30" 
+            ],
+        },
+
+
+
+
+        {
             "name": "Sort RGB image",
             "type": "debugpy",
             "request": "launch",
-            "program": "sort_rgb_img.py",
+            "program": "examples/sort_rgb_img.py",
             "console": "integratedTerminal",
             "args": ["--img-path", "img/VanGogh-starry_night.jpg",
             // "--no-shuffle",
             ],
         },
-
-
-    ]
+    ],
 }

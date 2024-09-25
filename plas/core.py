@@ -18,6 +18,115 @@ import itertools
 from tqdm import tqdm
 import os
 from collections import defaultdict
+from plas.vad import avg_L2_dist_between_neighbors
+import matplotlib.pyplot as plt
+import random
+import math
+from plas.primes import get_primes_up_to
+
+primes = np.array([])
+
+### ---------------- philox related start ---------------- ###
+from cuda import cuda, nvrtc
+cuda_code = ""
+with open("plas/test.cu", "r") as f:
+    cuda_code = f.read()
+num_rounds = 24
+
+
+def _cudaGetErrorEnum(error):
+    if isinstance(error, cuda.CUresult):
+        err, name = cuda.cuGetErrorName(error)
+        return name if err == cuda.CUresult.CUDA_SUCCESS else "<unknown>"
+    elif isinstance(error, nvrtc.nvrtcResult):
+        return nvrtc.nvrtcGetErrorString(error)[1]
+    else:
+        raise RuntimeError("Unknown error type: {}".format(error))
+
+
+def print_compile_log(result, prog):
+    try:
+        import ctypes
+        log_size = int()
+        nvrtc.nvrtcGetProgramLogSize(log_size)
+        print(log_size)
+        log_buffer = bytearray(log_size + 1)
+        # nvrtc.nvrtcGetProgramLog(prog, log_buffer)
+        # print(log_buffer.decode("utf-8"))
+    except Exception as e:
+        raise RuntimeError("Error in print_compile_log: {}".format(e))
+
+    if result[0].value:
+        raise RuntimeError(
+            "CUDA error code={}({})".format(
+                result[0].value, _cudaGetErrorEnum(result[0])
+            )
+        )
+    if len(result) == 1:
+        return None
+    elif len(result) == 2:
+        return result[1]
+    else:
+        return result[1:]
+
+def checkCudaErrors(result):
+    if result[0].value:
+        raise RuntimeError(
+            "CUDA error code={}({})".format(
+                result[0].value, _cudaGetErrorEnum(result[0])
+            )
+        )
+    if len(result) == 1:
+        return None
+    elif len(result) == 2:
+        return result[1]
+    else:
+        return result[1:]
+
+
+# Initialize CUDA Driver API
+checkCudaErrors(cuda.cuInit(0))
+
+# Retrieve handle for device 0
+cuDevice = checkCudaErrors(cuda.cuDeviceGet(0))
+
+# Derive target architecture for device 0
+major = checkCudaErrors(
+    cuda.cuDeviceGetAttribute(
+        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevice
+    )
+)
+minor = checkCudaErrors(
+    cuda.cuDeviceGetAttribute(
+        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevice
+    )
+)
+print(f"Running on GPU with compute capability {major}.{minor}")
+arch_arg = bytes(f"--gpu-architecture=compute_{major}{minor}", "ascii")
+
+# Create program
+prog = checkCudaErrors(
+    nvrtc.nvrtcCreateProgram(str.encode(cuda_code), b"philox.cu", 0, [], [])
+)
+
+# Compile program
+opts = [b"-G", arch_arg, b"--lineinfo"]
+print_compile_log(nvrtc.nvrtcCompileProgram(prog, 2, opts), prog)
+
+# Get PTX from compilation
+ptxSize = checkCudaErrors(nvrtc.nvrtcGetPTXSize(prog))
+ptx = b" " * ptxSize
+checkCudaErrors(nvrtc.nvrtcGetPTX(prog, ptx))
+
+context = checkCudaErrors(cuda.cuCtxCreate(0, cuDevice))
+
+# Load PTX as module data and retrieve function
+ptx = np.char.array(ptx)
+# Note: Incompatible --gpu-architecture would be detected here
+module = checkCudaErrors(cuda.cuModuleLoadData(ptx.ctypes.data))
+kernel = checkCudaErrors(cuda.cuModuleGetFunction(module, b"random_philox_bijection"))
+
+### ---------------- philox related end ---------------- ###
 
 # TODO settle on either torchvision or kornia
 
@@ -273,17 +382,107 @@ def blocky_to_params(
     return params
 
 
+class Cipher:
+    def __init__(self, capacity, num_rounds):
+        import random
+
+        self.total_bits = self.get_cipher_bits(capacity)
+        # Half bits rounded down
+        self.left_side_bits = self.total_bits // 2
+        self.left_side_mask = (1 << self.left_side_bits) - 1
+        # Half bits rounded up
+        self.right_side_bits = self.total_bits - self.left_side_bits
+        self.right_side_mask = (1 << self.right_side_bits) - 1
+        self.num_rounds = num_rounds
+        self.keys = [random.getrandbits(64) for _ in range(self.num_rounds)]
+
+    def get_cipher_bits(self, capacity):
+        if capacity == 0:
+            return 0
+        i = 0
+        capacity -= 1
+        while capacity != 0:
+            i += 1
+            capacity >>= 1
+        return max(i, 4)
+
+
+def get_random_permutation(n: int, device, permute_type: str = "torch.randperm"):
+    if permute_type == "torch.randperm":
+        return torch.randperm(n, device=device)
+    elif permute_type == "lcg":
+        global primes
+        generator = primes[random.randint(0, primes.shape[0] - 1)]
+        offset = random.randint(0, n - 1)
+        permutation = torch.arange(n, dtype=torch.int64, device=device)
+        permutation = (permutation * generator + offset) % n
+        return permutation
+    elif permute_type == "philox":
+        n_threads = 1024
+        n_blocks = math.ceil(n / n_threads)
+
+        # setup input
+        cypher = Cipher(n, 24) # generates random keys, one for each round
+        right_side_bits = np.array(cypher.right_side_bits, dtype=np.uint64)
+        right_side_mask = np.array(cypher.right_side_mask, dtype=np.uint64)
+        left_side_bits = np.array(cypher.left_side_bits, dtype=np.uint64)
+        left_side_mask = np.array(cypher.left_side_mask, dtype=np.uint64)
+        keys_host = np.array(cypher.keys, dtype=np.uint64)
+        keys_class = checkCudaErrors(cuda.cuMemAlloc(keys_host.nbytes))
+        stream = checkCudaErrors(cuda.cuStreamCreate(0))
+        checkCudaErrors(cuda.cuMemcpyHtoD(keys_class, keys_host.ctypes.data, keys_host.nbytes, stream))
+        keys_device = np.array([int(keys_class)], dtype=np.uint64)
+        output_host = np.zeros(n, dtype=np.uint64)
+        output_class = checkCudaErrors(cuda.cuMemAlloc(n * 8))
+        output_device = np.array([int(output_class)], dtype=np.uint64) 
+        args = [np.array([n], dtype=np.uint64), 
+                np.array([num_rounds], dtype=np.uint64), 
+                right_side_bits,
+                left_side_bits, 
+                right_side_mask, 
+                left_side_mask,  
+                keys_device,
+                output_device
+            ]
+        args = np.array([arg.ctypes.data for arg in args], dtype=np.uint64)
+
+        # launch kernel
+        checkCudaErrors(cuda.cuLaunchKernel(
+            kernel, 
+            n_blocks, # grid x dim
+            1, # grid y dim
+            1, # grid z dim
+            n_threads, # block x dim
+            1, # block y dim
+            1, # block z dim
+            0, # dynamic shared memory
+            stream,
+            args.ctypes.data, # kernel arguments
+            0
+            )
+        )
+
+        # retrieve output
+        checkCudaErrors(cuda.cuMemcpyDtoHAsync(output_host.ctypes.data, output_class, output_host.nbytes, stream))
+        # let the host wait for the device to finish
+        checkCudaErrors(cuda.cuStreamSynchronize(stream))
+        result = torch.tensor(output_host, device=device)
+        return result[result < n]
+    else:
+        raise ValueError(f"permute_type={permute_type} not implemented")
+
+
 # @torch.compile(options={"epilogue_fusion": True, "max_autotune": True})
 def reorder_blocky_shuffled(
-    params_blocky_flat, grid_indices_blocky_flat, target_blocky_flat, block_size
+    params_blocky_flat,
+    grid_indices_blocky_flat,
+    target_blocky_flat,
+    block_size,
+    permute_type: str = "torch.randperm",
 ):
-
-    shuffled_block_indices = torch.randperm(
-        block_size * block_size, device=params_blocky_flat.device
+    shuffled_block_indices = get_random_permutation(
+        block_size * block_size, params_blocky_flat.device, permute_type
     )
-    # shuffled_block_indices = torch.arange(
-    #     block_size * block_size, device=params.device
-    # )
 
     # put them in groups of 4
     shuffled_block_indices_cand = shuffled_block_indices.reshape(-1, 4)
@@ -341,6 +540,8 @@ def reorder_plas(
     border_type_y,
     improvement_break,
     pbar,
+    progress_record=None,
+    permute_type: str = "torch.randperm",
 ):
     # Filter the map vectors using the actual filter radius
     target = low_pass_filter(
@@ -413,7 +614,23 @@ def reorder_plas(
                 grid_indices_blocky_flat,
                 target_blocky_flat,
                 block_size,
+                permute_type=permute_type,
             )
+            if progress_record is not None:
+                params = blocky_to_params(
+                    params_rolled,
+                    params_blocky_flat,
+                    block_size,
+                    block_divisor,
+                    num_pixel_blocks,
+                    shift_y,
+                    shift_x,
+                ).contiguous()
+                progress_record["avg_neighbor_l2_dist"].append(
+                    avg_L2_dist_between_neighbors(params)
+                )
+                progress_record["block_size"].append(block_size)
+                progress_record["block_config_no"].append(block_config)
 
             cur_dist = l2_dist(params_blocky_flat, target_blocky_flat)
 
@@ -468,6 +685,7 @@ def reorder_plas(
 
         # ensure that there are a few different configs tried before giving up
         # (for rolling / border improvement)
+        # break
         if not has_improved and block_config >= 3:
             break
 
@@ -494,8 +712,10 @@ def sort_with_plas(
     border_type_y="reflect",
     seed=None,
     verbose=False,
+    record_sorting_progress=False,
+    permute_type: str = "torch.randperm",
 ):
-    """ Sorts a set of parameters in a 2xn grid using the Parallel Linear Assignment Sorting (PLAS) algorithm.
+    """Sorts a set of parameters in a 2xn grid using the Parallel Linear Assignment Sorting (PLAS) algorithm.
 
     Args:
         border_type_x/y (str): Border for the Gaussian blur that is performed to create the targets for sorting.
@@ -503,6 +723,17 @@ def sort_with_plas(
                                x defaults to 'circular', y defaults to 'reflect': this allows for seamless resampling 1D data into square 2D grids.
         min_blur_radius: Last/smallest blur radius to apply before stopping sort. Defaults to 1 for optimal sort. Increase for earlier stops.
     """
+    global primes
+    primes = get_primes_up_to(params.shape[1] * params.shape[2] - 1)
+
+    if record_sorting_progress:
+        progress_record = {
+            "avg_neighbor_l2_dist": [],
+            "block_size": [],
+            "block_config_no": [],
+        }
+    else:
+        progress_record = None
 
     if seed is not None:
         torch.manual_seed(seed)
@@ -517,7 +748,9 @@ def sort_with_plas(
     start_time = time.time()
 
     radius_f = max(H, W) / 2 - 1
-    radii = list(radius_seq(max_radius=radius_f, min_radius=min_blur_radius, radius_update=0.95))
+    radii = list(
+        radius_seq(max_radius=radius_f, min_radius=min_blur_radius, radius_update=0.95)
+    )
 
     if verbose:
         pbar = tqdm(radii)
@@ -549,6 +782,8 @@ def sort_with_plas(
                 border_type_y,
                 improvement_break,
                 pbar=pbar,
+                progress_record=progress_record,
+                permute_type=permute_type,
             )
 
             total_num_reorders += num_reorders
@@ -562,5 +797,61 @@ def sort_with_plas(
         print(
             f"\nSorted {params.shape[2]}x{params.shape[2]}={params.shape[1] * params.shape[2]} Gaussians @ {params.shape[0]} dimensions with PLAS in {duration:.3f} seconds \n       with {total_num_reorders} reorders at a rate of {total_num_reorders / duration:.3f} reorders per second"
         )
+
+    if record_sorting_progress:
+        # Create a time index for plotting
+        x = range(len(progress_record["avg_neighbor_l2_dist"]))
+
+        # Create a figure and a set of subplots
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+
+        ax3 = ax1.twinx()  # Create a twin of ax1
+        ax3.spines["right"].set_position(
+            ("outward", 60)
+        )  # Move the third y-axis outward
+        color = "tab:green"
+        ax3.set_ylabel("Max Block Config No. (EMA)", color=color)
+        x_block_config_no = []
+        y_block_config_no = []
+        for i in range(len(x)):
+            if i == len(x) - 1 or (
+                progress_record["block_config_no"][i + 1] == 0
+                and progress_record["block_config_no"][i] != 0
+            ):
+                x_block_config_no.append(i)
+                y_block_config_no.append(progress_record["block_config_no"][i])
+
+        # smooth the block configuration number
+        def exponential_moving_average(series, alpha):
+            ema = [series[0]]  # Start with the first value
+            for i in range(1, len(series)):
+                ema.append(alpha * series[i] + (1 - alpha) * ema[-1])
+            return np.array(ema)
+
+        alpha = 0.1
+        y_block_config_no = exponential_moving_average(y_block_config_no, alpha)
+        ax3.plot(x_block_config_no, y_block_config_no, color=color)
+        ax3.tick_params(axis="y", labelcolor=color)
+
+        color = "tab:blue"
+        ax1.set_xlabel("Reorders")
+        ax1.set_ylabel("Avg Neighbor L2 Dist", color=color)
+        ax1.plot(x, progress_record["avg_neighbor_l2_dist"], color=color)
+        ax1.set_yscale("log")
+        ax1.tick_params(axis="y", labelcolor=color)
+
+        ax2 = ax1.twinx()
+        color = "tab:orange"
+        ax2.set_ylabel("Block Size", color=color)
+        ax2.plot(x, progress_record["block_size"], color=color)
+        ax2.set_yscale("log")
+        ax2.tick_params(axis="y", labelcolor=color)
+
+        # Add a title
+        plt.title("Sorting Progress")
+
+        # Show the plot
+        fig.tight_layout()  # To prevent overlap of labels
+        plt.show()
 
     return params, grid_indices

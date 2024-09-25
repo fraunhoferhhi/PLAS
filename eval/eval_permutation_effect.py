@@ -17,7 +17,8 @@ import trimesh as tm
 import click
 import os
 
-from plas import sort_with_plas, compute_vad
+from plas import sort_with_plas, compute_vad, avg_L2_dist_between_neighbors
+from matplotlib import pyplot
 
 
 # process fewer elements for development testing
@@ -110,10 +111,11 @@ def gs_ply_to_df(ply_file, min_block_size):
     return df, sidelen
 
 @click.command()
+@click.option("--sample-size", type=int, default=20)
 @click.option("--input-gs-ply", type=click.Path(exists=True))
 @click.option("--output-gs-ply", type=click.Path())
 @click.option("--output-rgb-point-cloud-ply", type=click.Path())
-def sort_gaussians(input_gs_ply, output_gs_ply, output_rgb_point_cloud_ply):
+def sort_gaussians(sample_size, input_gs_ply, output_gs_ply, output_rgb_point_cloud_ply):
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -158,15 +160,21 @@ def sort_gaussians(input_gs_ply, output_gs_ply, output_rgb_point_cloud_ply):
 
     params_torch_grid = params.permute(1, 0).reshape(-1, sidelen, sidelen)
 
-    sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-4, verbose=True)
-
-    sorted_indices = sorted_grid_indices.flatten().cpu().numpy()
-
-    sorted_df = df.iloc[sorted_indices]
-
-    sorted_vad = compute_vad(sorted_df.values.reshape(sidelen, sidelen, -1))
-    print(f"VAD of sorted ply: {sorted_vad:.4f}")
-
+    statistics = {
+        "torch.randperm": [],
+        "lcg": []
+    }
+    for permute_type in ["torch.randperm", "lcg"]:
+        for i in range(0, sample_size):
+            sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-4, verbose=True, permute_type=permute_type)
+            sorted_indices = sorted_grid_indices.flatten().cpu().numpy()
+            sorted_df = df.iloc[sorted_indices]
+            vad =  compute_vad(sorted_df.values.reshape(sidelen, sidelen, -1))
+            anl2 = avg_L2_dist_between_neighbors(torch.tensor(sorted_df.values.reshape(sidelen, sidelen, -1)).permute(2, 0, 1))
+            statistics[permute_type].append({"VAD": vad, "AND": anl2})
+    plot_statistics(statistics, "VAD")
+    plot_statistics(statistics, "AND")
+    
     if output_gs_ply is not None:    
         os.makedirs(os.path.dirname(output_gs_ply), exist_ok=True)
         # full gaussians ply
@@ -176,6 +184,20 @@ def sort_gaussians(input_gs_ply, output_gs_ply, output_rgb_point_cloud_ply):
         os.makedirs(os.path.dirname(output_rgb_point_cloud_ply), exist_ok=True)
         # xyz + rgb colors point cloud ply
         df_to_rgb_ply(sorted_df, output_rgb_point_cloud_ply)
+
+
+def plot_statistics(statistics, metric):
+    labels = ["torch.randperm", "lcg"]
+    colors = ["peachpuff", "lightblue"]
+    figure, axis = pyplot.subplots()
+    if metric == "VAD":
+        axis.set_ylabel("VAD (Variation of Absolute Differences)") 
+    elif metric == "AND":
+        axis.set_ylabel("Average Neighbor L2 Distance")
+    for i, label in enumerate(labels):
+        pyplot.boxplot([sample[metric] for sample in statistics[label]], positions=[i], patch_artist=True, boxprops=dict(facecolor=colors[i]), tick_labels=[label])
+    pyplot.title(f"{metric} vs Permutation Type")
+    pyplot.show()
 
 
 if __name__ == "__main__":
