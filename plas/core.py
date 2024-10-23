@@ -11,6 +11,7 @@
 
 import numpy as np
 import torch
+import plas.ops as ops
 import time
 import kornia
 import functools
@@ -25,108 +26,6 @@ import math
 from plas.primes import get_primes_up_to
 
 primes = np.array([])
-
-### ---------------- philox related start ---------------- ###
-from cuda import cuda, nvrtc
-cuda_code = ""
-with open("plas/test.cu", "r") as f:
-    cuda_code = f.read()
-num_rounds = 24
-
-
-def _cudaGetErrorEnum(error):
-    if isinstance(error, cuda.CUresult):
-        err, name = cuda.cuGetErrorName(error)
-        return name if err == cuda.CUresult.CUDA_SUCCESS else "<unknown>"
-    elif isinstance(error, nvrtc.nvrtcResult):
-        return nvrtc.nvrtcGetErrorString(error)[1]
-    else:
-        raise RuntimeError("Unknown error type: {}".format(error))
-
-
-def print_compile_log(result, prog):
-    try:
-        import ctypes
-        log_size = int()
-        nvrtc.nvrtcGetProgramLogSize(log_size)
-        print(log_size)
-        log_buffer = bytearray(log_size + 1)
-        # nvrtc.nvrtcGetProgramLog(prog, log_buffer)
-        # print(log_buffer.decode("utf-8"))
-    except Exception as e:
-        raise RuntimeError("Error in print_compile_log: {}".format(e))
-
-    if result[0].value:
-        raise RuntimeError(
-            "CUDA error code={}({})".format(
-                result[0].value, _cudaGetErrorEnum(result[0])
-            )
-        )
-    if len(result) == 1:
-        return None
-    elif len(result) == 2:
-        return result[1]
-    else:
-        return result[1:]
-
-def checkCudaErrors(result):
-    if result[0].value:
-        raise RuntimeError(
-            "CUDA error code={}({})".format(
-                result[0].value, _cudaGetErrorEnum(result[0])
-            )
-        )
-    if len(result) == 1:
-        return None
-    elif len(result) == 2:
-        return result[1]
-    else:
-        return result[1:]
-
-
-# Initialize CUDA Driver API
-checkCudaErrors(cuda.cuInit(0))
-
-# Retrieve handle for device 0
-cuDevice = checkCudaErrors(cuda.cuDeviceGet(0))
-
-# Derive target architecture for device 0
-major = checkCudaErrors(
-    cuda.cuDeviceGetAttribute(
-        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevice
-    )
-)
-minor = checkCudaErrors(
-    cuda.cuDeviceGetAttribute(
-        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevice
-    )
-)
-print(f"Running on GPU with compute capability {major}.{minor}")
-arch_arg = bytes(f"--gpu-architecture=compute_{major}{minor}", "ascii")
-
-# Create program
-prog = checkCudaErrors(
-    nvrtc.nvrtcCreateProgram(str.encode(cuda_code), b"philox.cu", 0, [], [])
-)
-
-# Compile program
-opts = [b"-G", arch_arg, b"--lineinfo"]
-print_compile_log(nvrtc.nvrtcCompileProgram(prog, 2, opts), prog)
-
-# Get PTX from compilation
-ptxSize = checkCudaErrors(nvrtc.nvrtcGetPTXSize(prog))
-ptx = b" " * ptxSize
-checkCudaErrors(nvrtc.nvrtcGetPTX(prog, ptx))
-
-context = checkCudaErrors(cuda.cuCtxCreate(0, cuDevice))
-
-# Load PTX as module data and retrieve function
-ptx = np.char.array(ptx)
-# Note: Incompatible --gpu-architecture would be detected here
-module = checkCudaErrors(cuda.cuModuleLoadData(ptx.ctypes.data))
-kernel = checkCudaErrors(cuda.cuModuleGetFunction(module, b"random_philox_bijection"))
-
-### ---------------- philox related end ---------------- ###
 
 # TODO settle on either torchvision or kornia
 
@@ -407,69 +306,24 @@ class Cipher:
         return max(i, 4)
 
 
-def get_random_permutation(n: int, device, permute_type: str = "torch.randperm"):
-    if permute_type == "torch.randperm":
+def get_random_permutation(n: int, device, permute_config: dict):
+    if permute_config["type"] == "torch.randperm":
         return torch.randperm(n, device=device)
-    elif permute_type == "lcg":
+    elif permute_config["type"] == "lcg":
         global primes
         generator = primes[random.randint(0, primes.shape[0] - 1)]
         offset = random.randint(0, n - 1)
         permutation = torch.arange(n, dtype=torch.int64, device=device)
         permutation = (permutation * generator + offset) % n
         return permutation
-    elif permute_type == "philox":
-        n_threads = 1024
-        n_blocks = math.ceil(n / n_threads)
-
-        # setup input
-        cypher = Cipher(n, 24) # generates random keys, one for each round
-        right_side_bits = np.array(cypher.right_side_bits, dtype=np.uint64)
-        right_side_mask = np.array(cypher.right_side_mask, dtype=np.uint64)
-        left_side_bits = np.array(cypher.left_side_bits, dtype=np.uint64)
-        left_side_mask = np.array(cypher.left_side_mask, dtype=np.uint64)
-        keys_host = np.array(cypher.keys, dtype=np.uint64)
-        keys_class = checkCudaErrors(cuda.cuMemAlloc(keys_host.nbytes))
-        stream = checkCudaErrors(cuda.cuStreamCreate(0))
-        checkCudaErrors(cuda.cuMemcpyHtoD(keys_class, keys_host.ctypes.data, keys_host.nbytes, stream))
-        keys_device = np.array([int(keys_class)], dtype=np.uint64)
-        output_host = np.zeros(n, dtype=np.uint64)
-        output_class = checkCudaErrors(cuda.cuMemAlloc(n * 8))
-        output_device = np.array([int(output_class)], dtype=np.uint64) 
-        args = [np.array([n], dtype=np.uint64), 
-                np.array([num_rounds], dtype=np.uint64), 
-                right_side_bits,
-                left_side_bits, 
-                right_side_mask, 
-                left_side_mask,  
-                keys_device,
-                output_device
-            ]
-        args = np.array([arg.ctypes.data for arg in args], dtype=np.uint64)
-
-        # launch kernel
-        checkCudaErrors(cuda.cuLaunchKernel(
-            kernel, 
-            n_blocks, # grid x dim
-            1, # grid y dim
-            1, # grid z dim
-            n_threads, # block x dim
-            1, # block y dim
-            1, # block z dim
-            0, # dynamic shared memory
-            stream,
-            args.ctypes.data, # kernel arguments
-            0
-            )
-        )
-
-        # retrieve output
-        checkCudaErrors(cuda.cuMemcpyDtoHAsync(output_host.ctypes.data, output_class, output_host.nbytes, stream))
-        # let the host wait for the device to finish
-        checkCudaErrors(cuda.cuStreamSynchronize(stream))
-        result = torch.tensor(output_host, device=device)
-        return result[result < n]
+    elif permute_config["type"] == "philox":
+        # return torch.randperm(n, device=device) 
+        dummy = torch.randn(1, device=device)
+        N = int(2 ** np.ceil(np.log2(n)))
+        permutation = ops.random_philox_bijection(N, permute_config["num_rounds"], dummy)
+        return permutation[permutation < n]
     else:
-        raise ValueError(f"permute_type={permute_type} not implemented")
+        raise ValueError(f"permute_type={permute_config['type']} not implemented")
 
 
 # @torch.compile(options={"epilogue_fusion": True, "max_autotune": True})
@@ -478,10 +332,10 @@ def reorder_blocky_shuffled(
     grid_indices_blocky_flat,
     target_blocky_flat,
     block_size,
-    permute_type: str = "torch.randperm",
+    permute_config = None,
 ):
     shuffled_block_indices = get_random_permutation(
-        block_size * block_size, params_blocky_flat.device, permute_type
+        block_size * block_size, params_blocky_flat.device, permute_config
     )
 
     # put them in groups of 4
@@ -541,7 +395,7 @@ def reorder_plas(
     improvement_break,
     pbar,
     progress_record=None,
-    permute_type: str = "torch.randperm",
+    permute_config = None,
 ):
     # Filter the map vectors using the actual filter radius
     target = low_pass_filter(
@@ -614,7 +468,7 @@ def reorder_plas(
                 grid_indices_blocky_flat,
                 target_blocky_flat,
                 block_size,
-                permute_type=permute_type,
+                permute_config=permute_config,
             )
             if progress_record is not None:
                 params = blocky_to_params(
@@ -713,7 +567,7 @@ def sort_with_plas(
     seed=None,
     verbose=False,
     record_sorting_progress=False,
-    permute_type: str = "torch.randperm",
+    permute_config = None,
 ):
     """Sorts a set of parameters in a 2xn grid using the Parallel Linear Assignment Sorting (PLAS) algorithm.
 
@@ -759,6 +613,7 @@ def sort_with_plas(
 
     total_num_reorders = 0
 
+
     with torch.inference_mode():
 
         grid_indices = (
@@ -766,6 +621,7 @@ def sort_with_plas(
             .reshape(grid_shape)
             .unsqueeze(0)
         )
+
 
         for radius in radii:
             # compute filtersize that is smaller than any side of the grid
@@ -783,7 +639,7 @@ def sort_with_plas(
                 improvement_break,
                 pbar=pbar,
                 progress_record=progress_record,
-                permute_type=permute_type,
+                permute_config=permute_config,
             )
 
             total_num_reorders += num_reorders

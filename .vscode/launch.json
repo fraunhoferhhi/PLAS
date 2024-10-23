@@ -65,17 +65,14 @@
             "request": "launch",
             "program": "eval/eval_permutation_effect.py",
             "console": "integratedTerminal",
-            "args": ["--input-gs-ply", "C:\\Users\\helms\\Documents\\Data\\Gaussian Splatting\\gs_Ulf_s_Oleander.ply",
-                    "--sample-size=30" 
+            "args": ["--input-gs-ply", "/home/helms/Data/gs_Ulf_s_Oleander.ply",
+                    "--sample-size=20" 
             ],
         },
 
-
-
-
         {
             "name": "Sort RGB image",
-            "type": "debugpy",
+            "type": "python",
             "request": "launch",
             "program": "examples/sort_rgb_img.py",
             "console": "integratedTerminal",

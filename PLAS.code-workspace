@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../extension-cpp"
+		},
+		{
+			"path": "../CUDA-Shuffle"
+		},
+		{
+			"path": "../scan"
+		}
+	],
+	"settings": {
+		"python.defaultInterpreterPath": "/home/helms/anaconda3/envs/plas/bin/python",
+		"files.associations": {
+			"chrono": "cpp",
+			"functional": "cpp"
+		}
+	}
+}

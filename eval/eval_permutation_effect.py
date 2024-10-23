@@ -92,9 +92,9 @@ def df_to_rgb_ply(df, ply_file):
 
 
 def gs_ply_to_df(ply_file, min_block_size):
-    gaussian_ply = tm.load(ply_file)
-    ply_data = gaussian_ply.metadata["_ply_raw"]["vertex"]["data"]
-    df = pd.DataFrame(ply_data)
+    ply_data = PlyData.read(ply_file)['vertex']
+    ply_dict = {property.name: ply_data[property.name] for property in ply_data.properties}
+    df = pd.DataFrame(ply_dict)
     # df.describe().drop("count")
 
     if DEBUG_TRUNCATE_ELEMENTS is not None:
@@ -160,21 +160,56 @@ def sort_gaussians(sample_size, input_gs_ply, output_gs_ply, output_rgb_point_cl
 
     params_torch_grid = params.permute(1, 0).reshape(-1, sidelen, sidelen)
 
+    permute_configs = [
+        {
+            "type": "torch.randperm",
+            "num_rounds": 1
+        },
+        {
+            "type": "lcg",
+            "num_rounds": 1
+        }
+    ]
     statistics = {
         "torch.randperm": [],
-        "lcg": []
+        "lcg": [],
     }
-    for permute_type in ["torch.randperm", "lcg"]:
+    rounds = [1,2,3,4,5,10,20,30,50]
+    # rounds = [1]
+
+    for round in rounds:
+        permute_configs.append({
+            "type": "philox",
+            "num_rounds": round
+        })
+        statistics["Ph" + str(round)] = []
+    
+    for permute_config in permute_configs:
         for i in range(0, sample_size):
-            sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-4, verbose=True, permute_type=permute_type)
+            sorted_coords, sorted_grid_indices = sort_with_plas(params_torch_grid, min_block_size, improvement_break=1e-4, verbose=True, permute_config=permute_config)
             sorted_indices = sorted_grid_indices.flatten().cpu().numpy()
             sorted_df = df.iloc[sorted_indices]
             vad =  compute_vad(sorted_df.values.reshape(sidelen, sidelen, -1))
             anl2 = avg_L2_dist_between_neighbors(torch.tensor(sorted_df.values.reshape(sidelen, sidelen, -1)).permute(2, 0, 1))
-            statistics[permute_type].append({"VAD": vad, "AND": anl2})
-    plot_statistics(statistics, "VAD")
+            if permute_config["type"] == "philox":
+                statistics["Ph" + str(permute_config['num_rounds'])].append({"VAD": float(vad), "AND": float(anl2)})
+            else:   
+                statistics[permute_config["type"]].append({"VAD": float(vad), "AND": float(anl2)})
+    import json
+    import os
+
+    # Create a directory for the output if it doesn't exist
+    os.makedirs("eval/statistics", exist_ok=True)
+
+    # Dump the statistics into a JSON file
+    output_file = "eval/statistics/permutation_effect_stats.json"
+    with open(output_file, "w") as f:
+        json.dump(statistics, f, indent=4)
+    print(f"Statistics have been saved to {output_file}")
+
     plot_statistics(statistics, "AND")
-    
+    plot_statistics(statistics, "VAD")
+
     if output_gs_ply is not None:    
         os.makedirs(os.path.dirname(output_gs_ply), exist_ok=True)
         # full gaussians ply
@@ -187,8 +222,9 @@ def sort_gaussians(sample_size, input_gs_ply, output_gs_ply, output_rgb_point_cl
 
 
 def plot_statistics(statistics, metric):
-    labels = ["torch.randperm", "lcg"]
-    colors = ["peachpuff", "lightblue"]
+    labels = list(statistics.keys())
+    import random
+    colors = ['#' + ''.join([random.choice('0123456789ABCDEF') for _ in range(6)]) for _ in range(len(labels))]
     figure, axis = pyplot.subplots()
     if metric == "VAD":
         axis.set_ylabel("VAD (Variation of Absolute Differences)") 
@@ -197,7 +233,7 @@ def plot_statistics(statistics, metric):
     for i, label in enumerate(labels):
         pyplot.boxplot([sample[metric] for sample in statistics[label]], positions=[i], patch_artist=True, boxprops=dict(facecolor=colors[i]), tick_labels=[label])
     pyplot.title(f"{metric} vs Permutation Type")
-    pyplot.show()
+    pyplot.savefig(f"eval/{metric}_vs_permutation_type.svg")
 
 
 if __name__ == "__main__":
