@@ -8,8 +8,8 @@ def test_philox():
     # Test on CUDA
     dummy_cuda = torch.randn(1, device='cuda')
     permutation_cuda = ops.random_philox_bijection(n, num_rounds, dummy_cuda)
-    # assert permutation_cuda.shape == torch.Size([n])
-    # assert torch.all(permutation_cuda.sort().values == torch.arange(n, device='cuda'))
+    assert permutation_cuda.shape == torch.Size([n])
+    assert torch.all(permutation_cuda.sort().values == torch.arange(n, device='cuda'))
     print("CUDA permutation:", permutation_cuda)
 
     # Test on CPU

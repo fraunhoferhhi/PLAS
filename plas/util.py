@@ -1,6 +1,42 @@
 import numpy as np
 import torch
 
+from PIL import Image
+import io
+
+def tensor_to_png(tensor):
+    """
+    Convert a PyTorch tensor to a PNG image in memory.
+
+    Args:
+    tensor (torch.Tensor): The input tensor with shape (C, H, W) where C must be 1, 3 or 4.
+
+    Returns:
+    bytes: The PNG image data.
+    """
+    # Ensure the tensor is on CPU and convert to numpy
+    tensor = tensor.cpu().numpy()
+
+    # Normalize the tensor to the range [0, 255] for PNG encoding
+    tensor = (tensor - tensor.min()) / (tensor.max() - tensor.min()) * 255
+    tensor = tensor.astype(np.uint8)
+
+    # Convert to H x W x C format for PIL
+    if tensor.shape[0] == 1:  # Grayscale
+        tensor = tensor.squeeze(0)
+    elif tensor.shape[0] == 3 or tensor.shape[0] == 4:  # RGB or RGBA
+        tensor = np.transpose(tensor, (1, 2, 0))
+    else:
+        raise ValueError("Expected tensor with either 1, 3 or 4 channels.")
+
+    # Create a PIL image
+    image = Image.fromarray(tensor)
+
+    # Save the image to a bytes buffer
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    return buffer.getvalue()
+
 
 def compute_vad(image):
     """
@@ -65,4 +101,3 @@ def avg_L2_dist_between_neighbors(image):
 
     H, W = image.shape[1:]
     return ((x_L2_diff_sum + y_L2_diff_sum) / (H * (W - 1) + W * (H - 1))).item()
-

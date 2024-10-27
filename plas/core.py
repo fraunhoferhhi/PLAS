@@ -19,7 +19,7 @@ import itertools
 from tqdm import tqdm
 import os
 from collections import defaultdict
-from plas.vad import avg_L2_dist_between_neighbors
+from plas.util import avg_L2_dist_between_neighbors
 import matplotlib.pyplot as plt
 import random
 import math
@@ -306,8 +306,8 @@ class Cipher:
         return max(i, 4)
 
 
-def get_random_permutation(n: int, device, permute_config: dict):
-    if permute_config["type"] == "torch.randperm":
+def get_random_permutation(n: int, device, permute_config: dict | None = None):
+    if permute_config is None or permute_config["type"] == "torch.randperm":
         return torch.randperm(n, device=device)
     elif permute_config["type"] == "lcg":
         global primes

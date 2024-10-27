@@ -82,6 +82,7 @@ setup(
         # 'lap',
         "matplotlib",
         "scipy",
+        "easydict",
     ],
     # entry_points={
     #     "console_scripts": [],
