@@ -708,6 +708,5 @@ def sort_with_plas(
 
         # Show the plot
         fig.tight_layout()  # To prevent overlap of labels
-        plt.show()
 
     return params, grid_indices

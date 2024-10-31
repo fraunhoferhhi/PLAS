@@ -34,8 +34,8 @@ def bench_sort_with_plas(grid, config: EasyDict = EasyDict()):
     for i in range(int(np.ceil(grid.shape[0] / 3))):
         png_size = len(tensor_to_png(sorted_coords[3*i:min(3*(i+1), grid.shape[0]), :, :]))
         png_size_sum += png_size
-    png_compression_factor = (np.prod(grid.shape) * grid.element_size()) / png_size_sum
-    bench_log.png_compression_factor = float(png_compression_factor)
+    compression_factor = (np.prod(grid.shape) * grid.element_size()) / png_size_sum
+    bench_log.compression_factor = float(compression_factor)
 
     and_unsorted = avg_L2_dist_between_neighbors(grid)
     and_sorted = avg_L2_dist_between_neighbors(sorted_coords)

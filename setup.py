@@ -83,6 +83,7 @@ setup(
         "matplotlib",
         "scipy",
         "easydict",
+        "imagecodecs"
     ],
     # entry_points={
     #     "console_scripts": [],

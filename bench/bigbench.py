@@ -23,5 +23,5 @@ benchmark_log.synthetic_data = bench_synthetic_data.bench(n_d_pairs)
 #TODO
 
 # write benchmark log to json file
-with open(f"bigbench_{version}.json", "w") as f:
+with open(f"bench/measurements/bigbench_{version}.json", "w") as f:
     json.dump(benchmark_log, f, indent=4)
