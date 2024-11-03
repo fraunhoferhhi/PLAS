@@ -1,0 +1,26 @@
+version: original_randperm
+
+# 3dgs config
+compressed_3dgs_folder: /home/helms/Data/plas_benchmark/compressed_3dgs_scenes
+
+# image config
+image_folder: /home/helms/Data/plas_benchmark/images
+
+# random data config
+random_data:
+  side_lengths:
+    quick: [32, 64]
+    big: [32, 64, 128, 256, 512, 1024]
+  dimensions:
+    quick: [3, 9]
+    big: [3, 6, 9, 12, 15]
+  samples: 3
+
+# PLAS config
+plas_config:
+  min_block_size: 16
+  min_blur_radius: 1
+  improvement_break: 1e-5
+  border_type_x: circular
+  border_type_y: reflect
+  verbose: true

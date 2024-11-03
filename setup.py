@@ -84,6 +84,7 @@ setup(
         "scipy",
         "easydict",
         "imagecodecs"
+        # "hydra-core"
     ],
     # entry_points={
     #     "console_scripts": [],

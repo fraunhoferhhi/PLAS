@@ -3,7 +3,7 @@ import numpy as np
 from torch import nn
 from plyfile import PlyData, PlyElement
 from bench3dgs.general_utils import strip_symmetric, build_scaling_rotation
-
+from omegaconf import DictConfig
 import kornia
 from plas import sort_with_plas
 import torch.nn.functional as F
@@ -278,32 +278,32 @@ class GaussianModel:
             tensor = tensor / tensor.std()
         return tensor
 
-    def sort_into_grid(self, sorting_cfg, verbose):
+    def sort_into_grid(self, compression_cfg, plas_config: DictConfig, verbose=False):
         
-        normalization_fn = self.normalize if sorting_cfg.normalize else lambda x: x
-        attr_getter_fn = self.get_activated_attr_flat if sorting_cfg.activated else self.get_attr_flat
+        normalization_fn = self.normalize if compression_cfg.normalize else lambda x: x
+        attr_getter_fn = self.get_activated_attr_flat if compression_cfg.activated else self.get_attr_flat
         
         params_to_sort = []
         
-        for attr_name, attr_weight in sorting_cfg.weights.items():
+        for attr_name, attr_weight in compression_cfg.weights.items():
             if attr_weight > 0:
                 params_to_sort.append(normalization_fn(attr_getter_fn(attr_name)) * attr_weight)
                     
         params_to_sort = torch.cat(params_to_sort, dim=1)
         
-        if sorting_cfg.shuffle:
+        if compression_cfg.shuffle:
             shuffled_indices = torch.randperm(params_to_sort.shape[0], device=params_to_sort.device)
             params_to_sort = params_to_sort[shuffled_indices]
 
         grid_to_sort = self.as_grid_img(params_to_sort).permute(2, 0, 1)
 
         start_time = timeit.default_timer()
-        _, sorted_indices = sort_with_plas(grid_to_sort, improvement_break=sorting_cfg.improvement_break, verbose=verbose)
+        _, sorted_indices = sort_with_plas(grid_to_sort, **plas_config)
         duration = timeit.default_timer() - start_time
         
         sorted_indices = sorted_indices.squeeze().flatten()
         
-        if sorting_cfg.shuffle:
+        if compression_cfg.shuffle:
             sorted_indices = shuffled_indices[sorted_indices]
         
         self.prune_all_but_these_indices(sorted_indices)

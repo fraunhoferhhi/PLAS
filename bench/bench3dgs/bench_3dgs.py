@@ -6,13 +6,12 @@ from bench3dgs.compression.compression_exp import (
 )
 from bench3dgs.gaussian_model import GaussianModel
 from easydict import EasyDict as edict
-
-sorting_config = edict({
+from omegaconf import DictConfig
+compression_cfg = edict({
     "enabled": True,
     "normalize": True,
     "activated": True,
     "shuffle": True,
-    "improvement_break": 0.0001,
     "weights": {
         "xyz": 1.0,
         "features_dc": 1.0,
@@ -23,7 +22,7 @@ sorting_config = edict({
     }
 })
 
-def bench(compressed_folder):
+def bench(compressed_folder, plas_config: DictConfig):
     gaussians = run_single_decompression(compressed_folder)
     gaussians.prune_to_square_shape(sort_by_opacity=True, verbose=False)
     
@@ -35,7 +34,7 @@ def bench(compressed_folder):
         uncompressed_size += tensor.numel() * tensor.element_size()
     
     # Sort with PLAS and measure time
-    duration = gaussians.sort_into_grid(sorting_config, verbose=True)
+    duration = gaussians.sort_into_grid(compression_cfg, plas_config)
 
     # Compress again and measure size
     with open(os.path.join(compressed_folder, "compression_config.yml"), "r") as stream:
