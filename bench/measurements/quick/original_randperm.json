@@ -1,0 +1,65 @@
+{
+    "version": "original_randperm",
+    "gaussian_splatting": {
+        "360_room": {
+            "duration": 41.96670991901192,
+            "compression_factor": 3.511210738580489
+        },
+        "360_bonsai": {
+            "duration": 140.207729982998,
+            "compression_factor": 3.114967878545669
+        },
+        "360_kitchen": {
+            "duration": 113.51368401499349,
+            "compression_factor": 2.5642820917555555
+        },
+        "tandt_truck": {
+            "duration": 92.31983400200261,
+            "compression_factor": 2.9330793501598094
+        }
+    },
+    "images": {
+        "small_bridge.jpg": {
+            "duration": 31.62718448700616,
+            "png_compression_factor": 13.973728745265532,
+            "avg_l2_dist_reduction_factor": 15.940068230200144
+        },
+        "sandbanks.webp": {
+            "duration": 123.77663561399095,
+            "png_compression_factor": 29.168664574599905,
+            "avg_l2_dist_reduction_factor": 10.205005941533056
+        },
+        "manhatten.webp": {
+            "duration": 23.807925300003262,
+            "png_compression_factor": 18.194481954769653,
+            "avg_l2_dist_reduction_factor": 20.50087236132362
+        },
+        "clarksville.jpg": {
+            "duration": 22.22172960799071,
+            "png_compression_factor": 12.088017490655194,
+            "avg_l2_dist_reduction_factor": 10.071818986465868
+        }
+    },
+    "random_data": {
+        "32x32x3": {
+            "duration": 2.264934027004832,
+            "png_compression_factor": 5.419667790666364,
+            "avg_l2_dist_reduction_factor": 4.32804340506561
+        },
+        "32x32x9": {
+            "duration": 2.2796915489889216,
+            "png_compression_factor": 4.349800081521455,
+            "avg_l2_dist_reduction_factor": 1.6684924696659358
+        },
+        "64x64x3": {
+            "duration": 6.001326748664724,
+            "png_compression_factor": 6.465350806453586,
+            "avg_l2_dist_reduction_factor": 6.596793589099693
+        },
+        "64x64x9": {
+            "duration": 6.107559617996837,
+            "png_compression_factor": 4.717110057717181,
+            "avg_l2_dist_reduction_factor": 1.8925844037588841
+        }
+    }
+}

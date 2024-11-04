@@ -84,6 +84,7 @@ setup(
         "scipy",
         "easydict",
         "imagecodecs"
+        "ipykernel"
         # "hydra-core"
     ],
     # entry_points={

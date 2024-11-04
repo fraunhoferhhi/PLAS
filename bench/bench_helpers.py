@@ -1,6 +1,5 @@
 from plas import sort_with_plas
 from plas import (
-    compute_vad,
     avg_L2_dist_between_neighbors,
     tensor_to_png,
 )

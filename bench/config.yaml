@@ -14,7 +14,7 @@ random_data:
   dimensions:
     quick: [3, 9]
     big: [3, 6, 9, 12, 15]
-  samples: 3
+  samples: 5
 
 # PLAS config
 plas_config:
@@ -24,3 +24,6 @@ plas_config:
   border_type_x: circular
   border_type_y: reflect
   verbose: true
+  permute_config:
+    type: torch.randperm
+    num_rounds: 4

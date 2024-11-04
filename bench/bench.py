@@ -24,7 +24,7 @@ def main(cfg: DictConfig):
     benchmark_2d_images(cfg, benchmark_log)
     benchmark_random_data(cfg, benchmark_log)
 
-    with open(f"bench/measurements/quickbench_{cfg.version}.json", "w") as f:
+    with open(f"bench/measurements/{cfg.mode}/bench_{cfg.version}.json", "w") as f:
         json.dump(OmegaConf.to_container(benchmark_log), f, indent=4)
 
 
