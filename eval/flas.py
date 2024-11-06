@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 import time
-import lap
+import lapjv as lap
 import click
 
 from random_grid import generate_random_colors
