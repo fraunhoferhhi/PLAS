@@ -1,4 +1,4 @@
-version: original_randperm
+version: original_philox_with_proper_compaction
 
 # 3dgs config
 compressed_3dgs_folder: /home/helms/Data/plas_benchmark/compressed_3dgs_scenes
@@ -25,5 +25,5 @@ plas_config:
   border_type_y: reflect
   verbose: true
   permute_config:
-    type: torch.randperm
+    type: philox
     num_rounds: 4

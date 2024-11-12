@@ -97,6 +97,13 @@
             "program": "bench/bench.py",
             "console": "integratedTerminal",
             "args": ["+mode=big"],
+        },
+
+        {
+            "name": "PLAS CUDA Debug",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/plas/csrc/cuda/test"
         }
-    ],
+    ]
 }

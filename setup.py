@@ -36,7 +36,7 @@ def get_extensions():
         extra_link_args.extend(["-O0", "-g"])
 
     this_dir = os.path.dirname(os.path.curdir)
-    extensions_dir = os.path.join(this_dir, library_name, "csrc")
+    extensions_dir = os.path.join(this_dir, "src", library_name, "csrc")
     sources = list(glob.glob(os.path.join(extensions_dir, "*.cpp")))
 
     extensions_cuda_dir = os.path.join(extensions_dir, "cuda")
@@ -57,11 +57,11 @@ def get_extensions():
     return ext_modules
 
 
-
 setup(
     name=library_name,
     version="0.2",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     ext_modules=get_extensions(),
     install_requires=[
         "numpy",
@@ -83,7 +83,7 @@ setup(
         "matplotlib",
         "scipy",
         "easydict",
-        "imagecodecs"
+        "imagecodecs",
         "ipykernel"
         # "hydra-core"
     ],
@@ -91,8 +91,9 @@ setup(
     #     "console_scripts": [],
     # },
     package_data={
-        "plas": ["../img/*.jpg", "primes.txt"],
+        library_name: ["../../img/*.jpg", "primes.txt"],
     },
     include_package_data=True,
+    include_dirs=[f"./src/{library_name}/csrc/cuda/Common"],
     cmdclass={"build_ext": BuildExtension},
 )
