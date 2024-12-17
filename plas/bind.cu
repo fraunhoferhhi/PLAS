@@ -11,7 +11,8 @@ namespace plas
         const int64_t num_rounds,
         at::Tensor &dummy)
     {
-        int *permutation = random_philox_permutation_cuda(n, num_rounds);
+        std::vector<int> keys = get_random_philox_keys(num_rounds);
+        int *permutation = philox_permutation_cuda(n, num_rounds, keys);
         cudaDeviceSynchronize();
         std::function<void(void *)> deleter = [](void *ptr) {
             cudaFree(ptr);

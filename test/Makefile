@@ -1,5 +1,9 @@
 # Makefile to build tests with CUDA debugging support
 
+SRC_DIR := ../plas/src
+BUILD_DIR := ./build
+INC_DIR := ../plas/include
+
 # Location of the CUDA Toolkit
 CUDA_PATH ?= /usr/local/cuda
 

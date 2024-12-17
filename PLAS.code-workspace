@@ -4,20 +4,95 @@
 			"path": "."
 		},
 		{
-			"path": "../extension-cpp"
-		},
-		{
-			"path": "../CUDA-Shuffle"
-		},
-		{
 			"path": "../scan"
+		},
+		{
+			"path": "../Self-Organizing-Gaussians"
+		},
+		{
+			"path": "../cuda-samples"
 		}
 	],
 	"settings": {
 		"python.defaultInterpreterPath": "/home/helms/anaconda3/envs/plas/bin/python",
 		"files.associations": {
 			"chrono": "cpp",
-			"functional": "cpp"
-		}
+			"functional": "cpp",
+			"compare": "cpp",
+			"cstdint": "cpp",
+			"iostream": "cpp",
+			"array": "cpp",
+			"atomic": "cpp",
+			"bit": "cpp",
+			"*.tcc": "cpp",
+			"cctype": "cpp",
+			"charconv": "cpp",
+			"clocale": "cpp",
+			"cmath": "cpp",
+			"complex": "cpp",
+			"concepts": "cpp",
+			"condition_variable": "cpp",
+			"cstdarg": "cpp",
+			"cstddef": "cpp",
+			"cstdio": "cpp",
+			"cstdlib": "cpp",
+			"cstring": "cpp",
+			"ctime": "cpp",
+			"cwchar": "cpp",
+			"cwctype": "cpp",
+			"deque": "cpp",
+			"list": "cpp",
+			"map": "cpp",
+			"set": "cpp",
+			"string": "cpp",
+			"unordered_map": "cpp",
+			"vector": "cpp",
+			"exception": "cpp",
+			"algorithm": "cpp",
+			"iterator": "cpp",
+			"memory": "cpp",
+			"memory_resource": "cpp",
+			"numeric": "cpp",
+			"optional": "cpp",
+			"random": "cpp",
+			"ratio": "cpp",
+			"string_view": "cpp",
+			"system_error": "cpp",
+			"tuple": "cpp",
+			"type_traits": "cpp",
+			"utility": "cpp",
+			"format": "cpp",
+			"fstream": "cpp",
+			"initializer_list": "cpp",
+			"iomanip": "cpp",
+			"iosfwd": "cpp",
+			"istream": "cpp",
+			"limits": "cpp",
+			"mutex": "cpp",
+			"new": "cpp",
+			"numbers": "cpp",
+			"ostream": "cpp",
+			"semaphore": "cpp",
+			"shared_mutex": "cpp",
+			"span": "cpp",
+			"sstream": "cpp",
+			"stdexcept": "cpp",
+			"stop_token": "cpp",
+			"streambuf": "cpp",
+			"thread": "cpp",
+			"cfenv": "cpp",
+			"cinttypes": "cpp",
+			"typeinfo": "cpp",
+			"variant": "cpp"
+		},
+		"C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
+		"C_Cpp.vcFormat.newLine.beforeOpenBrace.function": "sameLine",
+		"C_Cpp.vcFormat.newLine.beforeOpenBrace.lambda": "sameLine",
+		"C_Cpp.vcFormat.newLine.beforeOpenBrace.namespace": "sameLine",
+		"C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine",
+		"C_Cpp.formatting": "clangFormat",
+		"C_Cpp.clang_format_style": "LLVM",
+		"python.testing.pytestEnabled": true,
+		"python.analysis.enablePytestSupport": false
 	}
 }

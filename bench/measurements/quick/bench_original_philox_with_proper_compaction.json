@@ -1,5 +1,5 @@
 {
-    "version": "original_philox_with_proper_compaction",
+    "version": "philox_with_blelloch_compaction",
     "gaussian_splatting": {
         "360_room": {
             "duration": 58.33879267200018,

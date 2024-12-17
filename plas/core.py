@@ -23,9 +23,7 @@ from plas.util import avg_L2_dist_between_neighbors
 import matplotlib.pyplot as plt
 import random
 import math
-from plas.primes import get_primes_up_to
 
-primes = np.array([])
 
 # TODO settle on either torchvision or kornia
 
@@ -309,13 +307,6 @@ class Cipher:
 def get_random_permutation(n: int, device, permute_config: dict | None = None):
     if permute_config is None or permute_config["type"] == "torch.randperm":
         return torch.randperm(n, device=device)
-    elif permute_config["type"] == "lcg":
-        global primes
-        generator = primes[random.randint(0, primes.shape[0] - 1)]
-        offset = random.randint(0, n - 1)
-        permutation = torch.arange(n, dtype=torch.int64, device=device)
-        permutation = (permutation * generator + offset) % n
-        return permutation
     elif permute_config["type"] == "philox":
         dummy = torch.randn(1, device=device)
         return plas.random_philox_permutation(n, permute_config["num_rounds"], dummy).to(torch.int64)

@@ -3,8 +3,8 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include <helper_functions.h>
-
 #include "filter_less_than.cuh"
+
 #include <iostream>
 #include <limits>
 #include <random>
@@ -55,7 +55,19 @@ int getCipherBits(int capacity) {
   return i;
 }
 
-int *random_philox_permutation_cuda(const int n, const int num_rounds) {
+std::vector<int> get_random_philox_keys(int num_rounds) {
+  std::vector<int> keys(num_rounds);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<int32_t> dis(
+      std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max());
+  for (int i = 0; i < num_rounds; i++) {
+    keys[i] = dis(gen);
+  }
+  return keys;
+}
+
+int *philox_permutation_cuda(const int n, const int num_rounds, const std::vector<int> &keys) {
   // Ceil n to the next power of 2
   int N = int(1) << (32 - __builtin_clzll(n - 1));
   N = max(N, 2048);
@@ -67,20 +79,10 @@ int *random_philox_permutation_cuda(const int n, const int num_rounds) {
   int right_side_bits = total_bits - left_side_bits;
   int right_side_mask = (1ULL << right_side_bits) - 1;
 
-  // generate random keys
-  int *keys = new int[num_rounds];
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<int32_t> dis(
-      std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max());
-  for (int i = 0; i < num_rounds; i++) {
-    keys[i] = dis(gen);
-  }
   // Copy keys to GPU memory
   int *d_keys;
   cudaMalloc(&d_keys, num_rounds * sizeof(int));
-  cudaMemcpy(d_keys, keys, num_rounds * sizeof(int), cudaMemcpyHostToDevice);
-  delete[] keys; // Free host memory since we've copied to device
+  cudaMemcpy(d_keys, keys.data(), num_rounds * sizeof(int), cudaMemcpyHostToDevice);
 
   // allocate output
   int *outer_permutation;
@@ -102,4 +104,9 @@ int *random_philox_permutation_cuda(const int n, const int num_rounds) {
   cudaFree(outer_permutation);
 
   return inner_permutation;
+}
+
+int *random_philox_permutation_cuda(int n, int num_rounds) {
+  std::vector<int> keys = get_random_philox_keys(num_rounds);
+  return philox_permutation_cuda(n, num_rounds, keys);
 }

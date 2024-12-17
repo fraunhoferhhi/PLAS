@@ -1,5 +1,5 @@
 {
-    "version": "original_lcg",
+    "version": "lcg",
     "gaussian_splatting": {
         "360_room": {
             "duration": 14.362730208988069,

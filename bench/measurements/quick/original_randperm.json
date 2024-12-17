@@ -1,5 +1,5 @@
 {
-    "version": "original_randperm",
+    "version": "torch.randperm",
     "gaussian_splatting": {
         "360_room": {
             "duration": 41.96670991901192,
