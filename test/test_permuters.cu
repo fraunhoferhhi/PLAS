@@ -1,6 +1,6 @@
 // Debuggible test for random_philox_permutation (CUDA-gdb)
 
-#include "plas.cuh"
+#include "permuters.cuh"
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -9,69 +9,75 @@
 #include <random>
 #include <vector>
 
-bool device_array_is_permutation(int *d_array, int n) {
-  int *host_array = new int[n];
-  cudaMemcpy(host_array, d_array, n * sizeof(int), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
-  std::vector<bool> seen(n, false);
+bool test_LCG_fused_inverse(int num_permutations = 3, int n = 10) {
+  LCGPermuter permuter;
+  int *original = new int[n];
   for (int i = 0; i < n; i++) {
-    if (host_array[i] < 0 || host_array[i] >= n || seen[host_array[i]]) {
-      return false;
-    }
-    seen[host_array[i]] = true;
+    original[i] = i;
   }
-  return true;
-}
 
-void test_random_philox_permutation() {
-  std::vector<int> sizes = {
-      1,         2,         3,         4,          5,          6,      7,
-      8,         9,         10,        20,         70,       1024,   1025,
-      2048,      2049,      4096,      4097,       10'000,     50'000, 100'000,
-      1'000'000, 4'000'000, 5'000'000, 10'000'000, 100'000'000};
-  int num_philox_rounds = 5;
-  int samples_per_size = 5;
-  for (int n : sizes) {
-    for (int sample = 0; sample < samples_per_size; sample++) {
-      int *result = random_philox_permutation_cuda(n, num_philox_rounds);
-      cudaDeviceSynchronize();
-      if (!device_array_is_permutation(result, n)) {
-        std::cout << "test_random_philox_permutation failed for size " << n
-                  << " at sample " << sample << std::endl;
-        return;
-      }
-      cudaFree(result);
+  int *result = new int[n];
+  std::copy(original, original + n, result);
+  int *temp = new int[n];
+
+  // Apply permutations in forward order
+  for (int p = 0; p < num_permutations; p++) {
+    int *d_perm = permuter.get_new_permutation(n);
+    int *h_perm = new int[n];
+    cudaMemcpy(h_perm, d_perm, n * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
+    // Apply permutation
+    for (int i = 0; i < n; i++) {
+      temp[i] = result[h_perm[i]];
     }
+    std::copy(temp, temp + n, result);
   }
-  std::cout << "test_random_philox_permutation passed" << std::endl;
-}
 
-void test_multiple_random_philox_permutations_calls_without_free_inbetween() {
-  std::vector<int> sizes = {6, 85, 2049, 4097, 10'000, 50'000};
-  int num_philox_rounds = 5;
-  int num_iterations = 10;
+  // Get and apply single fused inverse permutation
+  int *d_fused_inv = permuter.get_inverse_permutation(n);
+  int *h_fused_inv = new int[n];
+  cudaMemcpy(h_fused_inv, d_fused_inv, n * sizeof(int), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
 
-  std::vector<int*> results;
-  for (int i = 0; i < num_iterations; i++) {
-    for (int n : sizes) {
-      int *result = random_philox_permutation_cuda(n, num_philox_rounds);
-      results.push_back(result);
-      cudaDeviceSynchronize();
-      if (!device_array_is_permutation(result, n)) {
-        std::cout << "test_multiple_calls passed for size " << n 
-                 << " at iteration " << i << std::endl;
-        return;
-      }
-      // Deliberately not freeing result to test memory handling
+  // Apply fused inverse permutation
+  for (int i = 0; i < n; i++) {
+    temp[i] = result[h_fused_inv[i]];
+  }
+  std::copy(temp, temp + n, result);
+
+  // Check if we got back the original array
+  bool success = true;
+  for (int i = 0; i < n; i++) {
+    if (result[i] != original[i]) {
+      success = false;
+      break;
     }
   }
-  for (int *result : results) {
-    cudaFree(result);
-  }
-  std::cout << "test_multiple_random_philox_permutations_calls_without_free_inbetween passed" << std::endl;
+
+  // Cleanup
+  delete[] original;
+  delete[] result;
+  delete[] temp;
+  delete[] h_fused_inv;
+
+  return success;
 }
 
-int main(int argc, char **argv) {
-  test_random_philox_permutation();
-  test_multiple_random_philox_permutations_calls_without_free_inbetween();
+void test_LCG_permuter() {
+  bool success = true;
+  for (int num_permutations = 1; num_permutations < 20; num_permutations++) {
+    std::vector<int> possible_ns = {2,          5,          10,      100,
+                                    1'000,      10'000,     100'000, 1'000'000,
+                                    10'000'000, 100'000'000};
+    success = test_LCG_fused_inverse(num_permutations,
+                                     possible_ns[rand() % possible_ns.size()]);
+  }
+  if (!success) {
+    std::cout << "failed test_LCG_permuter" << std::endl;
+  } else {
+    std::cout << "passed test_LCG_permuter" << std::endl;
+  }
 }
+
+int main(int argc, char **argv) { test_LCG_permuter(); }

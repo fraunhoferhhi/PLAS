@@ -29,5 +29,6 @@ int *lcg_permutation_cuda(int n, int generator, int offset, int* output) {
   int threads = 1024;
   int blocks = (n + threads - 1) / threads;
   lcg_permutation_kernel<<<blocks, threads>>>(n, generator, offset, output);
+  cudaDeviceSynchronize();
   return output;
 }

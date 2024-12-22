@@ -1,8 +1,9 @@
 # Makefile to build tests with CUDA debugging support
 
+INC_DIR := ../plas/include
 SRC_DIR := ../plas/src
 BUILD_DIR := ./build
-INC_DIR := ../plas/include
+BIN_DIR := ./bin
 
 # Location of the CUDA Toolkit
 CUDA_PATH ?= /usr/local/cuda
@@ -262,8 +263,8 @@ ALL_LDFLAGS += $(addprefix -Xlinker ,$(LDFLAGS))
 ALL_LDFLAGS += $(addprefix -Xlinker ,$(EXTRA_LDFLAGS))
 
 # Common includes and paths for CUDA
-INCLUDES  := -I./Common
-LIBRARIES :=
+INCLUDES  := -I./CUDA_debug_util -I$(INC_DIR)
+LIBRARIES := -lcudnn
 
 ################################################################################
 
@@ -290,7 +291,7 @@ GENCODE_FLAGS += -gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM)
 endif
 endif
 
-ALL_CCFLAGS += --threads 0 --std=c++17
+ALL_CCFLAGS += --threads 0 --std=c++17 -MMD
 
 ifeq ($(SAMPLE_ENABLED),0)
 EXEC ?= @echo "[@]"
@@ -299,7 +300,11 @@ endif
 # Target rules
 all: build
 
-build: test
+build: create_dir test_permuters
+
+create_dir:
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BIN_DIR)
 
 check.deps:
 ifeq ($(SAMPLE_ENABLED),0)
@@ -308,27 +313,21 @@ else
 	@echo "Sample is ready - all dependencies have been met"
 endif
 
-test.o:test.cu plas.cuh
+test_permuters: $(BUILD_DIR)/test_permuters.o $(BUILD_DIR)/lcg_permutation.o $(BUILD_DIR)/philox_permutation.o
+	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $(BIN_DIR)/$@ $+ $(LIBRARIES)
+
+$(BUILD_DIR)/%.o: %.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-plas.o: plas.cu
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-random_philox_permutation.o: random_philox_permutation.cu filter_less_than.cuh
-	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
-
-test: test.o plas.o random_philox_permutation.o
-	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
-	$(EXEC) mkdir -p ../../../bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
-	$(EXEC) cp $@ ../../../bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
-
-run: build
-	$(EXEC) ./test
-
-testrun: build
+-include $(BUILD_DIR)/*.d
 
 clean:
-	rm -f test test.o
-	rm -rf ../../../bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/test
+	rm -rf $(BUILD_DIR)
+	rm -rf $(BIN_DIR)
 
-clobber: clean
+### Launch rules ###
+permuter_test: test_permuters
+	$(EXEC) $(BIN_DIR)/test_permuters

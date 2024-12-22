@@ -100,10 +100,10 @@
         },
 
         {
-            "name": "PLAS CUDA Debug",
+            "name": "Debug Permuters Test",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/src/plas/csrc/cuda/test"
+            "program": "${workspaceFolder}/test/bin/test_permuters"
         }
     ]
 }

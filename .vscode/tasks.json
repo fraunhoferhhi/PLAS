@@ -2,9 +2,9 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Build PLAS CUDA test",
+			"label": "Build Permuters Test",
 			"type": "shell",
-			"command": "cd src/plas/csrc/cuda && make dbg=1",
+			"command": "cd test && make dbg=1",
 			"problemMatcher": ["$nvcc"],
 			"group": {
 				"kind": "build",
